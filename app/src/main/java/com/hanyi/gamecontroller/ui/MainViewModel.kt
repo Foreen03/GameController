@@ -221,6 +221,4 @@ class MainViewModel(
         startSensors()
         startStreaming()
     }
-
-
 }
