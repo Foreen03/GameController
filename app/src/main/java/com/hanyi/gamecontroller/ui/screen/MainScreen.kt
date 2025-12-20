@@ -1,27 +1,20 @@
 package com.hanyi.gamecontroller.ui.screen
 
-import android.bluetooth.BluetoothDevice
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.hanyi.gamecontroller.domain.model.BleConnectionState
-import com.hanyi.gamecontroller.data.ble.BleManager
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.navigation.AppNavigation
@@ -32,8 +25,20 @@ fun MainScreen(
     uiState: BleUiState,
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination?.route
+    val screensWithBottomBar = listOf(
+        AppNavigation.Home.route,
+        AppNavigation.Bluetooth.route
+    )
+    val isBottomBar = currentDestination in screensWithBottomBar
     Scaffold(
-        bottomBar = { BottomBar(navController) }
+        // Hide bottom bar when navigate into game pad
+        bottomBar = {
+            if(isBottomBar){
+                BottomBar(navController, currentDestination)
+            }
+        }
     ) { innerPadding ->
         BottomNavGraph(
             modifier = Modifier.padding(innerPadding),
@@ -46,7 +51,7 @@ fun MainScreen(
 
 
 @Composable
-fun BottomBar(navController: NavHostController) {
+fun BottomBar(navController: NavHostController, currentDestination: String?) {
 
     val screens = listOf(
         AppNavigation.Home,
@@ -54,10 +59,8 @@ fun BottomBar(navController: NavHostController) {
     )
 
     NavigationBar(
-        containerColor = Color(0xFF0F9D58)
+        containerColor = MaterialTheme.colorScheme.primary
     ) {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination?.route
         screens.forEach { navItem ->
             NavigationBarItem(
                 selected = currentDestination == navItem.route,
@@ -75,7 +78,7 @@ fun BottomBar(navController: NavHostController) {
                     selectedIconColor = Color.White,
                     unselectedIconColor = Color.White,
                     selectedTextColor = Color.White,
-                    indicatorColor = Color(0xFF195334)
+                    indicatorColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }

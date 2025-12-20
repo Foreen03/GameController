@@ -1,12 +1,10 @@
 package com.hanyi.gamecontroller.ui.screen
 
-import android.bluetooth.BluetoothDevice
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.hanyi.gamecontroller.domain.model.BleConnectionState
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.navigation.AppNavigation
@@ -22,13 +20,7 @@ fun BottomNavGraph(
     NavHost(navController = navController, startDestination = AppNavigation.Home.route){
 
         composable(route = AppNavigation.Home.route) {
-//            StepCounterScreen(
-//                viewModel = viewModel,
-//                onResume = { viewModel },
-//                onPause = { onPause() },
-//                onRequestPermission = { onRequestPermission() }
-//            )
-            ControllerScreen(viewModel = viewModel)
+            GamePadList(navController = navController)
         }
 
         composable(route = AppNavigation.Bluetooth.route) {
@@ -49,6 +41,10 @@ fun BottomNavGraph(
                 },
                 onDisconnect = viewModel::disconnect
             )
+        }
+
+        composable(route = AppNavigation.DefaultGamepad.route) {
+            ControllerScreen(viewModel = viewModel)
         }
     }
 

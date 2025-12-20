@@ -1,5 +1,7 @@
 package com.hanyi.gamecontroller.ui.screen
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,8 +41,6 @@ import kotlinx.coroutines.flow.map
 fun ControllerScreen(
     viewModel: MainViewModel
 ) {
-    val steps by viewModel.steps.collectAsState()
-    val accel by viewModel.accel.collectAsState()
     val isPaused by viewModel.uiState
         .map { it.isPaused }
         .collectAsState(initial = true)
@@ -60,170 +60,46 @@ fun ControllerScreen(
         }
     }
 
-    Column(
+    LockScreenOrientation(orientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
-
         PauseButton(
             isPause = isPaused,
             onTogglePause = {
-                if (isPaused) {
-                    viewModel.sendResumeCommand()
-                } else {
-                    viewModel.sendPauseCommand()
-                }
-            }
+                if (isPaused) viewModel.sendResumeCommand()
+                else viewModel.sendPauseCommand()
+            },
+            modifier = Modifier.align(Alignment.TopCenter)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        StepCounterSection(
-            steps = steps,
-            error = null,
-            onReset = { /* optional */ }
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        AccelerometerSection(
-            x = accel.first,
-            y = accel.second,
-            error = null
-        )
-    }
-}
-
-@Composable
-fun StepCounterSection(
-    steps: Int,
-    error: String?,
-    onReset: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
-        ){
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Step Counter",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                } else {
-                    Text(
-                        text = "$steps",
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Text(
-                        text = "steps",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(onClick = onReset) {
-                        Text("Reset Steps")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AccelerometerSection(
-    x: Float,
-    y: Float,
-    error: String?
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Accelerometer",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+            GameButton(
+                label = "Jump",
+                onDown = {
+                    viewModel.sendAction("jump", "down")
+                },
+                onUp = {
+                    viewModel.sendAction("jump", "up")
+                },
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (error != null) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                AccelerometerRow("X", x)
-                AccelerometerRow("Y", y)
-            }
+            GameButton(
+                label = "Fire",
+                onDown = {
+                    viewModel.sendAction("fire", "down")
+                },
+                onUp = {
+                    viewModel.sendAction("fire", "up")
+                },
+            )
         }
     }
 }
-
-@Composable
-fun AccelerometerRow(label: String, value: Float) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = "$label:",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = "%.2f".format(value),
-            style = MaterialTheme.typography.bodyLarge
-        )
-    }
-}
-
-
-@Composable
-fun PauseButton(
-    isPause: Boolean,
-    onTogglePause: () -> Unit
-) {
-    IconButton(onClick = onTogglePause) {
-        Icon(
-            imageVector = if (isPause) Icons.Filled.PlayArrow else Pause,
-            contentDescription = if (isPause) "Resume" else "Pause"
-        )
-    }
-}
-
-

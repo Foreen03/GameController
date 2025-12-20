@@ -9,6 +9,7 @@ import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
+import com.hanyi.gamecontroller.domain.model.ActionPacket
 import com.hanyi.gamecontroller.domain.model.BleConnectionState
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.domain.model.CommandPacket
@@ -109,7 +110,27 @@ class MainViewModel(
             bleRepository.sendData(
                 SERVICE_UUID,
                 WRITE_CHAR_UUID,
-                message
+                Gson().toJson(
+                    CommandPacket(
+                    timestamp = System.currentTimeMillis(),
+                    payload = CommandPacket.Payload(message)
+                ))
+            )
+        }
+    }
+
+    fun sendAction(action: String, phase: String){
+
+        val actionPacket = ActionPacket(
+            timestamp = System.currentTimeMillis(),
+            payload = ActionPacket.Payload(action, phase)
+        )
+
+        viewModelScope.launch {
+            bleRepository.sendData(
+                SERVICE_UUID,
+                WRITE_CHAR_UUID,
+                Gson().toJson(actionPacket)
             )
         }
     }

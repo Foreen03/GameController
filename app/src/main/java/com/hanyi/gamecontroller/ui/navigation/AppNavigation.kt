@@ -1,9 +1,11 @@
 package com.hanyi.gamecontroller.ui.navigation
 
+import MaterialSymbolsStadia_controller
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.hanyi.gamecontroller.ui.icon.BootstrapBluetooth
 
 sealed class AppNavigation(
     val route: String,
@@ -18,6 +20,12 @@ sealed class AppNavigation(
     object Bluetooth: AppNavigation(
         route = "bluetooth",
         title = "Bluetooth",
-        icon = Icons.Default.Menu
+        icon = BootstrapBluetooth
+    )
+
+    object DefaultGamepad: AppNavigation(
+        route = "gamepad/default",
+        title = "Default GamePad",
+        icon = MaterialSymbolsStadia_controller
     )
 }
