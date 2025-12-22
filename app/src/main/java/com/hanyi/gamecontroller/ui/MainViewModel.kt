@@ -114,7 +114,7 @@ class MainViewModel(
                     CommandPacket(
                     timestamp = System.currentTimeMillis(),
                     payload = CommandPacket.Payload(message)
-                ))
+                )).toByteArray()
             )
         }
     }
@@ -130,7 +130,7 @@ class MainViewModel(
             bleRepository.sendData(
                 SERVICE_UUID,
                 WRITE_CHAR_UUID,
-                Gson().toJson(actionPacket)
+                Gson().toJson(actionPacket).toByteArray()
             )
         }
     }
@@ -166,14 +166,14 @@ class MainViewModel(
         bleRepository.sendData(
             SERVICE_UUID,
             WRITE_CHAR_UUID,
-            Gson().toJson(packet)
+            Gson().toJson(packet).toByteArray()
         )
     }
 
     fun startStreaming(){
         if(streamingJob != null) return
         streamingJob = viewModelScope.launch{
-            tickerFlow(50).collect{
+            tickerFlow(16).collect{
                 sendMovementPacket()
             }
         }
@@ -215,7 +215,7 @@ class MainViewModel(
                         timestamp = System.currentTimeMillis(),
                         payload = CommandPacket.Payload("pause")
                     )
-                )
+                ).toByteArray()
             )
         }
 
@@ -234,7 +234,7 @@ class MainViewModel(
                         timestamp = System.currentTimeMillis(),
                         payload = CommandPacket.Payload("resume")
                     )
-                )
+                ).toByteArray()
             )
         }
 

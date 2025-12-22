@@ -23,6 +23,8 @@ import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import kotlin.coroutines.resume
 
@@ -44,6 +46,8 @@ class BleManager(private val context: Context) {
     private val _receivedData = MutableStateFlow<String>("")
     val receivedData: StateFlow<String> = _receivedData
     private var pendingWriteContinuation: CancellableContinuation<Boolean>? = null
+    private val writeMutex = Mutex()
+
     var startTime: Long = 0
 
 
@@ -249,64 +253,29 @@ class BleManager(private val context: Context) {
         }
     }
 
-    fun writeCharacteristic(serviceUuid: UUID, characteristicUUID: UUID, data: String) {
-        if(ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_CONNECT
-            )!= PackageManager.PERMISSION_GRANTED){
-            return
-        }
-
-        val service = bluetoothGatt?.getService(serviceUuid)
-        val characteristic = service?.getCharacteristic(characteristicUUID)
-
-        if(characteristic != null){
-            characteristic.value = data.toByteArray()
-            bluetoothGatt?.writeCharacteristic(characteristic)
-        } else{
-            Log.e(TAG, "Characteristic not found")
-        }
-    }
-
-    suspend fun writeCharacteristicSuspend(
+    suspend fun writeCharacteristic(
         serviceUuid: UUID,
         characteristicUUID: UUID,
-        data: String
-    ): Boolean = suspendCancellableCoroutine { cont ->
+        data: ByteArray
+    ): Boolean = writeMutex.withLock {
 
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
-            != PackageManager.PERMISSION_GRANTED) {
-            cont.resume(false)
-            return@suspendCancellableCoroutine
-        }
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return false
 
-        val service = bluetoothGatt?.getService(serviceUuid)
-        val characteristic = service?.getCharacteristic(characteristicUUID)
+        val gatt = bluetoothGatt ?: return false
+        val service = gatt.getService(serviceUuid) ?: return false
+        val characteristic = service.getCharacteristic(characteristicUUID) ?: return false
 
-        if (characteristic == null) {
-            Log.e(TAG, "Characteristic not found")
-            cont.resume(false)
-            return@suspendCancellableCoroutine
-        }
+        characteristic.writeType =
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
 
-        // Save continuation inside manager to resume later in callback
-        pendingWriteContinuation = cont
+        characteristic.value = data
 
-        characteristic.value = data.toByteArray()
-        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-
-        startTime = System.nanoTime()
-        val success = bluetoothGatt?.writeCharacteristic(characteristic) ?: false
-
-        if (!success) {
-            // Failed to start writing
-            pendingWriteContinuation = null
-            cont.resume(false)
-        }
-
-        // Coroutine will resume in callback below
+        gatt.writeCharacteristic(characteristic)
     }
-
 
     fun enableNotifications(serviceUuid: UUID, characteristicUUID: UUID) {
         if(ActivityCompat.checkSelfPermission(

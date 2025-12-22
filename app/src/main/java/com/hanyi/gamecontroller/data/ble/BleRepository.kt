@@ -28,9 +28,9 @@ class BleRepository(
     suspend fun sendData(
         serviceUUID: UUID,
         charUUID: UUID,
-        data: String
+        data: ByteArray
     ): Boolean {
-        return bleManager.writeCharacteristicSuspend(
+        return bleManager.writeCharacteristic(
             serviceUuid = serviceUUID,
             characteristicUUID = charUUID,
             data = data
