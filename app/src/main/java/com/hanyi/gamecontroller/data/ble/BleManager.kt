@@ -22,7 +22,6 @@ import com.hanyi.gamecontroller.domain.model.SERVICE_UUID
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
@@ -269,8 +268,7 @@ class BleManager(private val context: Context) {
         val service = gatt.getService(serviceUuid) ?: return false
         val characteristic = service.getCharacteristic(characteristicUUID) ?: return false
 
-        characteristic.writeType =
-            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
 
         characteristic.value = data
 

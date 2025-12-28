@@ -6,7 +6,7 @@ data class CommandPacket(
     val payload: Payload
 ) {
     data class Payload(
-        val action: String
+        val command: String
     )
 }
 

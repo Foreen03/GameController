@@ -121,6 +121,11 @@ class MainViewModel(
 
     fun sendAction(action: String, phase: String){
 
+        // avoid sending action while in the pause state
+        if(_uiState.value.isPaused){
+            return
+        }
+
         val actionPacket = ActionPacket(
             timestamp = System.currentTimeMillis(),
             payload = ActionPacket.Payload(action, phase)
@@ -189,20 +194,6 @@ class MainViewModel(
             emit(Unit)
             delay(periodMs)
         }
-    }
-
-    fun onGameStart() {
-        if (uiState.value.connectionState !== BleConnectionState.CONNECTED) return
-        startSensors()
-        startStreaming()
-    }
-
-    fun onGamePause() {
-        sendPauseCommand()
-    }
-
-    fun onGameResume() {
-        sendResumeCommand()
     }
 
     fun sendPauseCommand() {

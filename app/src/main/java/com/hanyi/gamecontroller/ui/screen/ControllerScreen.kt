@@ -49,7 +49,7 @@ fun ControllerScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> viewModel.onGamePause()
+                Lifecycle.Event.ON_PAUSE -> viewModel.sendPauseCommand()
                 else -> Unit
             }
         }
