@@ -1,21 +1,14 @@
 package com.hanyi.gamecontroller.ui
 
-import MovementPacket
 import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.ble.BleRepository
+import com.hanyi.gamecontroller.data.controller.CommandSender
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
-import com.hanyi.gamecontroller.domain.model.ActionPacket
-import com.hanyi.gamecontroller.domain.model.BleConnectionState
 import com.hanyi.gamecontroller.domain.model.BleUiState
-import com.hanyi.gamecontroller.domain.model.CommandPacket
-import com.hanyi.gamecontroller.domain.model.READ_CHAR_UUID
-import com.hanyi.gamecontroller.domain.model.SERVICE_UUID
-import com.hanyi.gamecontroller.domain.model.WRITE_CHAR_UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +18,7 @@ import kotlinx.coroutines.launch
 class MainViewModel(
     private val bleRepository: BleRepository,
     private val sensorCoordinator: SensorCoordinator,
+    private val commandSender: CommandSender,
     stepRepo: StepDetectorRepository,
     accelRepo: AccelerometerRepository
 ): ViewModel() {
@@ -105,20 +99,6 @@ class MainViewModel(
 
     fun disconnect() = bleRepository.disconnect()
 
-    fun sendData(message: String) {
-        viewModelScope.launch {
-            bleRepository.sendData(
-                SERVICE_UUID,
-                WRITE_CHAR_UUID,
-                Gson().toJson(
-                    CommandPacket(
-                    timestamp = System.currentTimeMillis(),
-                    payload = CommandPacket.Payload(message)
-                )).toByteArray()
-            )
-        }
-    }
-
     fun sendAction(action: String, phase: String){
 
         // avoid sending action while in the pause state
@@ -126,26 +106,17 @@ class MainViewModel(
             return
         }
 
-        val actionPacket = ActionPacket(
-            timestamp = System.currentTimeMillis(),
-            payload = ActionPacket.Payload(action, phase)
-        )
-
         viewModelScope.launch {
-            bleRepository.sendData(
-                SERVICE_UUID,
-                WRITE_CHAR_UUID,
-                Gson().toJson(actionPacket).toByteArray()
-            )
+            commandSender.sendAction(action, phase)
         }
     }
 
-    fun readData() {
-        bleRepository.readData(
-            SERVICE_UUID,
-            READ_CHAR_UUID
-        )
-    }
+//    fun readData() {
+//        bleRepository.readData(
+//            SERVICE_UUID,
+//            READ_CHAR_UUID
+//        )
+//    }
 
     override fun onCleared() {
         super.onCleared()
@@ -156,22 +127,9 @@ class MainViewModel(
     fun stopSensors() = sensorCoordinator.stopAll()
 
     private suspend fun sendMovementPacket() {
-        val accelValue = latestAccel.value
-
-        val packet = MovementPacket(
-            timestamp = System.currentTimeMillis(),
-            payload = MovementPacket.Payload(
-                steps = latestSteps.value,
-                x = accelValue.first,
-                y = accelValue.second,
-                z = accelValue.third
-            )
-        )
-
-        bleRepository.sendData(
-            SERVICE_UUID,
-            WRITE_CHAR_UUID,
-            Gson().toJson(packet).toByteArray()
+        commandSender.sendMovement(
+            steps = latestSteps.value,
+            accel = latestAccel.value
         )
     }
 
@@ -198,18 +156,8 @@ class MainViewModel(
 
     fun sendPauseCommand() {
         viewModelScope.launch {
-            bleRepository.sendData(
-                SERVICE_UUID,
-                WRITE_CHAR_UUID,
-                Gson().toJson(
-                    CommandPacket(
-                        timestamp = System.currentTimeMillis(),
-                        payload = CommandPacket.Payload("pause")
-                    )
-                ).toByteArray()
-            )
+            commandSender.sendCommand("pause")
         }
-
         _uiState.update { it.copy(isPaused = true) }
         stopStreaming()
         stopSensors()
@@ -217,18 +165,8 @@ class MainViewModel(
 
     fun sendResumeCommand() {
         viewModelScope.launch {
-            bleRepository.sendData(
-                SERVICE_UUID,
-                WRITE_CHAR_UUID,
-                Gson().toJson(
-                    CommandPacket(
-                        timestamp = System.currentTimeMillis(),
-                        payload = CommandPacket.Payload("resume")
-                    )
-                ).toByteArray()
-            )
+            commandSender.sendCommand("resume")
         }
-
         _uiState.update { it.copy(isPaused = false) }
         startSensors()
         startStreaming()

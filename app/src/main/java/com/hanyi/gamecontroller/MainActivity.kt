@@ -15,8 +15,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
+import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.ble.BleManager
 import com.hanyi.gamecontroller.data.ble.BleRepository
+import com.hanyi.gamecontroller.data.controller.CommandSender
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
@@ -34,6 +36,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var sensorCoordinator: SensorCoordinator
     private lateinit var stepDetectorRepository: StepDetectorRepository
     private lateinit var accelerometerRepository: AccelerometerRepository
+    private lateinit var commandSender: CommandSender
+    private var gson = Gson()
 
     private val requestBlePermissionsLauncher =
         registerForActivityResult(
@@ -76,13 +80,18 @@ class MainActivity : ComponentActivity() {
         bleRepository = BleRepository(bleManager)
         stepDetectorRepository = StepDetectorRepository(this)
         accelerometerRepository = AccelerometerRepository(this)
+        commandSender = CommandSender(
+            bleRepository = bleRepository,
+            gson = gson
+        )
         sensorCoordinator = SensorCoordinator(
             stepDetectorRepository,
             accelerometerRepository
         )
         viewModel = MainViewModel(
-            bleRepository,
+            bleRepository = bleRepository,
             sensorCoordinator = sensorCoordinator,
+            commandSender = commandSender,
             stepRepo = stepDetectorRepository,
             accelRepo = accelerometerRepository
         )

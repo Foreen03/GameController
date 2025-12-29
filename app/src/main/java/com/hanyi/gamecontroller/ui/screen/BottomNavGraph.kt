@@ -27,17 +27,10 @@ fun BottomNavGraph(
             BluetoothScreen(
                 connectionState = uiState.connectionState,
                 discoveredDevices = uiState.devices,
-                receivedData = uiState.lastReceivedData,
                 onStartScan = viewModel::startScan,
                 onStopScan = viewModel::stopScan,
                 onDeviceClick = { device ->
                     viewModel.connect(device)
-                },
-                onSendData = { message ->
-                    viewModel.sendData(message)
-                },
-                onReadData = {
-                    viewModel.readData()
                 },
                 onDisconnect = viewModel::disconnect
             )

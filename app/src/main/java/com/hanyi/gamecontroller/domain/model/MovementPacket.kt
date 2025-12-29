@@ -1,8 +1,14 @@
+package com.hanyi.gamecontroller.domain.model
+
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MovementPacket(
-    val packetType: String = "movement",
-    val timestamp: Long,
+    override val packetType: PacketType = PacketType.MOVEMENT,
+    override val timestamp: Long,
     val payload: Payload
-) {
+): BlePacket {
+    @Serializable
     data class Payload(
         val steps: Int,
         val x: Float,

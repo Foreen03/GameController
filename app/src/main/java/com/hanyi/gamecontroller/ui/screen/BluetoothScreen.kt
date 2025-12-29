@@ -42,15 +42,11 @@ import com.hanyi.gamecontroller.domain.model.BleConnectionState
 fun BluetoothScreen(
     connectionState: BleConnectionState,
     discoveredDevices: List<BluetoothDevice>,
-    receivedData: String,
     onStartScan: () -> Unit,
     onStopScan: () -> Unit,
     onDeviceClick: (BluetoothDevice) -> Unit,
-    onSendData: (String) -> Unit,
-    onReadData: () -> Unit,
     onDisconnect: () -> Unit
 ) {
-    var messageText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
