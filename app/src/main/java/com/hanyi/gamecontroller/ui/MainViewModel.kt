@@ -36,7 +36,6 @@ class MainViewModel(
     init {
         observeBle()
         requestBlePermission()
-        requestActivityPermission()
 
         viewModelScope.launch {
             steps.collect { latestSteps.value = it }
@@ -78,6 +77,12 @@ class MainViewModel(
             blePermissionGranted = granted,
             requestBlePermission = false
         )
+
+        if(granted){
+            _uiState.value = _uiState.value.copy(
+                requestActivityPermission = true
+            )
+        }
     }
 
     fun onActivityPermissionResult(

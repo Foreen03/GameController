@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "491925525140",
+    "project_id": "yhy-gamecontroller",
+    "storage_bucket": "yhy-gamecontroller.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491925525140:android:337ed62846149b47711a81",
+        "android_client_info": {
+          "package_name": "com.hanyi.gamecontroller"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDoXMVFo1LF1mzRFa5T2MMupJg1QmpkKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
