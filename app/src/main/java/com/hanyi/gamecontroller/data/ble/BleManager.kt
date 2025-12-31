@@ -26,6 +26,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import kotlin.coroutines.resume
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanSettings
+import android.os.ParcelUuid
+
 
 class BleManager(private val context: Context) {
     private val TAG = "BleManager"
@@ -42,6 +46,8 @@ class BleManager(private val context: Context) {
     private val _discoveredDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val discoveredDevices: StateFlow<List<BluetoothDevice>> = _discoveredDevices
 
+    private val serverScanFilter = ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build()
+    private val scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
     private val _receivedData = MutableStateFlow<String>("")
     val receivedData: StateFlow<String> = _receivedData
     private var pendingWriteContinuation: CancellableContinuation<Boolean>? = null
@@ -86,7 +92,11 @@ class BleManager(private val context: Context) {
 
         _discoveredDevices.value = emptyList()
 
-        bluetoothLeScanner?.startScan(scanCallback)
+        bluetoothLeScanner?.startScan(
+            listOf(serverScanFilter),
+            scanSettings,
+            scanCallback
+        )
         Log.d(TAG, "Started BLE Scan")
     }
 
