@@ -13,6 +13,7 @@ data class MovementPacket(
         val steps: Int,
         val x: Float,
         val y : Float,
-        val z: Float
+        val z: Float,
+        val buttons: Map<String, Boolean>
     )
 }

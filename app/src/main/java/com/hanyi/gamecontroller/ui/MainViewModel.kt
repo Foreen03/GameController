@@ -32,6 +32,7 @@ class MainViewModel(
     private val latestSteps = MutableStateFlow(0)
     private val latestAccel = MutableStateFlow(Triple(0f, 0f, 0f))
     private var streamingJob: Job? = null
+    private val buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
 
     init {
         observeBle()
@@ -79,9 +80,7 @@ class MainViewModel(
         )
 
         if(granted){
-            _uiState.value = _uiState.value.copy(
-                requestActivityPermission = true
-            )
+            requestActivityPermission()
         }
     }
 
@@ -104,15 +103,22 @@ class MainViewModel(
 
     fun disconnect() = bleRepository.disconnect()
 
-    fun sendAction(action: String, phase: String){
+//    fun sendAction(action: String, phase: String){
+//
+//        // avoid sending action while in the pause state
+//        if(_uiState.value.isPaused){
+//            return
+//        }
+//
+//        viewModelScope.launch {
+//            commandSender.sendAction(action, phase)
+//        }
+//    }
 
-        // avoid sending action while in the pause state
-        if(_uiState.value.isPaused){
-            return
-        }
-
+    fun setButton(id: String, pressed: Boolean){
+        buttonState.update { it + (id to pressed) }
         viewModelScope.launch {
-            commandSender.sendAction(action, phase)
+            sendMovementPacket()
         }
     }
 
@@ -134,7 +140,8 @@ class MainViewModel(
     private suspend fun sendMovementPacket() {
         commandSender.sendMovement(
             steps = latestSteps.value,
-            accel = latestAccel.value
+            accel = latestAccel.value,
+            buttonState = buttonState.value
         )
     }
 

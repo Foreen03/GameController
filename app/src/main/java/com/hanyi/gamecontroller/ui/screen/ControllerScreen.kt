@@ -84,20 +84,20 @@ fun ControllerScreen(
             GameButton(
                 label = "Jump",
                 onDown = {
-                    viewModel.sendAction("jump", "down")
+                    viewModel.setButton("jump", true)
                 },
                 onUp = {
-                    viewModel.sendAction("jump", "up")
+                    viewModel.setButton("jump", false)
                 },
             )
 
             GameButton(
                 label = "Fire",
                 onDown = {
-                    viewModel.sendAction("fire", "down")
+                    viewModel.setButton("fire", true)
                 },
                 onUp = {
-                    viewModel.sendAction("fire", "up")
+                    viewModel.setButton("fire", false)
                 },
             )
         }
