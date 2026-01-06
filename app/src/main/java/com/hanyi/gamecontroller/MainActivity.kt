@@ -2,10 +2,12 @@ package com.hanyi.gamecontroller
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,27 +17,38 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.room.Room
 import com.google.gson.Gson
+import com.hanyi.gamecontroller.data.GamepadRepository
 import com.hanyi.gamecontroller.data.ble.BleManager
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.controller.CommandSender
+import com.hanyi.gamecontroller.data.local.GamepadDao
+import com.hanyi.gamecontroller.data.local.GamepadDatabase
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
+import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.screen.MainScreen
 import com.hanyi.gamecontroller.ui.theme.GameControllerTheme
 import com.hanyi.gamecontroller.util.PermissionHelper
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var bleManager: BleManager
     private lateinit var bleRepository: BleRepository
     private lateinit var viewModel: MainViewModel
+    private lateinit var database: GamepadDatabase
 
     private lateinit var sensorCoordinator: SensorCoordinator
     private lateinit var stepDetectorRepository: StepDetectorRepository
     private lateinit var accelerometerRepository: AccelerometerRepository
+    private lateinit var gamepadRepository: GamepadRepository
     private lateinit var commandSender: CommandSender
     private var gson = Gson()
 
@@ -76,10 +89,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        database = Room.databaseBuilder(
+            applicationContext,
+            GamepadDatabase::class.java,
+            "gamepad_database"
+        ).build()
+
         bleManager = BleManager(this)
         bleRepository = BleRepository(bleManager)
         stepDetectorRepository = StepDetectorRepository(this)
         accelerometerRepository = AccelerometerRepository(this)
+        gamepadRepository = GamepadRepository(database.gamepadDao(), gson)
         commandSender = CommandSender(
             bleRepository = bleRepository,
             gson = gson
@@ -88,12 +108,27 @@ class MainActivity : ComponentActivity() {
             stepDetectorRepository,
             accelerometerRepository
         )
+
+        lifecycleScope.launch {
+            val hasGamepads = gamepadRepository.hasAnyGamepad()
+            if (!hasGamepads) {
+                val json = applicationContext.readJson("DEFAULT_GAMEPAD.json")
+                if (json.isNotEmpty()) {
+                    val config = gson.fromJson(json, GamepadConfig::class.java)
+                    gamepadRepository.insertGamepad(config)
+                    Log.d("GAMEPAD JSON", "Inserted default gamepad")
+                }
+            }
+        }
+
         viewModel = MainViewModel(
             bleRepository = bleRepository,
             sensorCoordinator = sensorCoordinator,
             commandSender = commandSender,
             stepRepo = stepDetectorRepository,
-            accelRepo = accelerometerRepository
+            accelRepo = accelerometerRepository,
+            gson = gson,
+            gamepadRepository = gamepadRepository
         )
 
         enableEdgeToEdge()
@@ -178,6 +213,15 @@ class MainActivity : ComponentActivity() {
             val intent =
                 Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(intent)
+        }
+    }
+
+    private fun Context.readJson(filename: String): String{
+        return try{
+            assets.open(filename).bufferedReader().use { it.readText() }
+        } catch (e: IOException){
+            e.printStackTrace()
+            ""
         }
     }
 }

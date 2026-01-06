@@ -8,6 +8,8 @@ import androidx.navigation.compose.composable
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.navigation.AppNavigation
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun BottomNavGraph(
@@ -19,8 +21,10 @@ fun BottomNavGraph(
 
     NavHost(navController = navController, startDestination = AppNavigation.Home.route){
 
-        composable(route = AppNavigation.Home.route) {
-            GamePadList(navController = navController)
+        composable(AppNavigation.Home.route) {
+            GamePadList(viewModel = viewModel) { selectedGamepad ->
+                navController.navigate("gamepad/${selectedGamepad.gamepad.id}")
+            }
         }
 
         composable(route = AppNavigation.Bluetooth.route) {
@@ -36,8 +40,13 @@ fun BottomNavGraph(
             )
         }
 
-        composable(route = AppNavigation.DefaultGamepad.route) {
-            ControllerScreen(viewModel = viewModel)
+        composable(route = "gamepad/{gamepadId}") { backStackEntry ->
+            val gamepadId = backStackEntry.arguments?.getString("gamepadId")
+            val gamepads by viewModel.gamepads.collectAsState()
+            val gamepad = gamepads.find { it.gamepad.id == gamepadId }
+            gamepad?.let {
+                ControllerScreen(config = it, viewModel = viewModel)
+            }
         }
     }
 

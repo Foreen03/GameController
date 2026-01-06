@@ -3,12 +3,15 @@ package com.hanyi.gamecontroller.ui
 import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.hanyi.gamecontroller.data.GamepadRepository
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.controller.CommandSender
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
 import com.hanyi.gamecontroller.domain.model.BleUiState
+import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +22,10 @@ class MainViewModel(
     private val bleRepository: BleRepository,
     private val sensorCoordinator: SensorCoordinator,
     private val commandSender: CommandSender,
+    private val gamepadRepository: GamepadRepository,
     stepRepo: StepDetectorRepository,
-    accelRepo: AccelerometerRepository
+    accelRepo: AccelerometerRepository,
+    private val gson: Gson
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(BleUiState())
@@ -34,6 +39,12 @@ class MainViewModel(
     private var streamingJob: Job? = null
     private val buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
 
+    private val _gamepads = MutableStateFlow<List<GamepadConfig>>(emptyList())
+    val gamepads: StateFlow<List<GamepadConfig>> = _gamepads
+
+    private val _selectedGamepad = MutableStateFlow<GamepadConfig?>(null)
+    val selectedGamepad: StateFlow<GamepadConfig?> = _selectedGamepad
+
     init {
         observeBle()
         requestBlePermission()
@@ -43,6 +54,11 @@ class MainViewModel(
         }
         viewModelScope.launch {
             accel.collect { latestAccel.value = it }
+        }
+        viewModelScope.launch {
+            gamepadRepository.getAllGamepads().collect { list ->
+                _gamepads.value = list
+            }
         }
     }
 
@@ -102,18 +118,6 @@ class MainViewModel(
     fun connect(device: BluetoothDevice) = bleRepository.connect(device)
 
     fun disconnect() = bleRepository.disconnect()
-
-//    fun sendAction(action: String, phase: String){
-//
-//        // avoid sending action while in the pause state
-//        if(_uiState.value.isPaused){
-//            return
-//        }
-//
-//        viewModelScope.launch {
-//            commandSender.sendAction(action, phase)
-//        }
-//    }
 
     fun setButton(id: String, pressed: Boolean){
         buttonState.update { it + (id to pressed) }
@@ -182,5 +186,20 @@ class MainViewModel(
         _uiState.update { it.copy(isPaused = false) }
         startSensors()
         startStreaming()
+    }
+
+    fun selectGamepad(id: String) {
+        viewModelScope.launch {
+            gamepadRepository.getGamepadById(id)?.let {
+                _selectedGamepad.value = it
+            }
+        }
+    }
+
+    fun insertDefaultGamepad(defaultJson: String) {
+        viewModelScope.launch {
+            val config = gson.fromJson(defaultJson, GamepadConfig::class.java)
+            gamepadRepository.insertGamepad(config)
+        }
     }
 }

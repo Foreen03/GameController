@@ -1,8 +1,11 @@
 package com.hanyi.gamecontroller.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,21 +21,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.hanyi.gamecontroller.domain.model.GamepadConfig
+import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.navigation.AppNavigation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GamePadList(
-    navController: NavController
+    viewModel: MainViewModel,
+    onSelectGamepad: (GamepadConfig) -> Unit
 ){
 
-    val screens = listOf(AppNavigation.DefaultGamepad)
+    val gamepads by viewModel.gamepads.collectAsState()
 
     Scaffold(
         topBar = {
@@ -45,29 +53,16 @@ fun GamePadList(
             )
         }
     ) { padding ->
-        LazyColumn {
-            items(screens){ screen ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(padding)
-                        .padding(12.dp)
-                        .clickable { navController.navigate(screen.route) }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = screen.icon,
-                            contentDescription = screen.title,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(text = screen.title, style = MaterialTheme.typography.bodyLarge)
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(gamepads) { gp ->
+                Card(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(padding)
+                    .clickable { onSelectGamepad(gp) })
+                {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = gp.gamepad.name)
+                        Text(text = gp.gamepad.description)
                     }
                 }
             }

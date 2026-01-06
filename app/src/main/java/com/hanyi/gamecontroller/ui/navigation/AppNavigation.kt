@@ -17,15 +17,10 @@ sealed class AppNavigation(
         title = "Home",
         icon = Icons.Default.Home
     )
+
     object Bluetooth: AppNavigation(
         route = "bluetooth",
         title = "Bluetooth",
         icon = BootstrapBluetooth
-    )
-
-    object DefaultGamepad: AppNavigation(
-        route = "gamepad/default",
-        title = "Default GamePad",
-        icon = MaterialSymbolsStadia_controller
     )
 }
