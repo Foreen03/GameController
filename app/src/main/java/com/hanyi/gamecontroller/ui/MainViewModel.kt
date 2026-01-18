@@ -1,6 +1,7 @@
 package com.hanyi.gamecontroller.ui
 
 import android.bluetooth.BluetoothDevice
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
@@ -12,6 +13,7 @@ import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.domain.model.GamepadConfig
+import com.hanyi.gamecontroller.domain.model.NotificationDialogState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -39,11 +41,11 @@ class MainViewModel(
     private var streamingJob: Job? = null
     private val buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
 
+    private val _dialogState = MutableStateFlow(NotificationDialogState())
+    val dialogState: StateFlow<NotificationDialogState> = _dialogState
+
     private val _gamepads = MutableStateFlow<List<GamepadConfig>>(emptyList())
     val gamepads: StateFlow<List<GamepadConfig>> = _gamepads
-
-    private val _selectedGamepad = MutableStateFlow<GamepadConfig?>(null)
-    val selectedGamepad: StateFlow<GamepadConfig?> = _selectedGamepad
 
     init {
         observeBle()
@@ -58,6 +60,25 @@ class MainViewModel(
         viewModelScope.launch {
             gamepadRepository.getAllGamepads().collect { list ->
                 _gamepads.value = list
+            }
+        }
+        viewModelScope.launch {
+            bleRepository.layoutEvents.collect { config ->
+                Log.d("MainViewModel", "Received layout config from bleRepository: ${gson.toJson(config)}")
+                onNotificationReceived(
+                    title = "New Layout Received",
+                    message = "A new custom layout has received from PC!"
+                )
+                gamepadRepository.insertGamepad(config)
+            }
+        }
+        viewModelScope.launch {
+            bleRepository.connectionEvents.collect { state ->
+                onNotificationReceived(
+                    title = "PC Disconnected",
+                    message = "Server Stopped"
+                )
+                bleRepository.disconnect()
             }
         }
     }
@@ -126,13 +147,6 @@ class MainViewModel(
         }
     }
 
-//    fun readData() {
-//        bleRepository.readData(
-//            SERVICE_UUID,
-//            READ_CHAR_UUID
-//        )
-//    }
-
     override fun onCleared() {
         super.onCleared()
         bleRepository.cleanUp()
@@ -188,18 +202,17 @@ class MainViewModel(
         startStreaming()
     }
 
-    fun selectGamepad(id: String) {
+    fun onNotificationReceived(title: String, message: String){
         viewModelScope.launch {
-            gamepadRepository.getGamepadById(id)?.let {
-                _selectedGamepad.value = it
-            }
+            _dialogState.value = NotificationDialogState(
+                show = true,
+                title = title,
+                message = message
+            )
         }
     }
 
-    fun insertDefaultGamepad(defaultJson: String) {
-        viewModelScope.launch {
-            val config = gson.fromJson(defaultJson, GamepadConfig::class.java)
-            gamepadRepository.insertGamepad(config)
-        }
+    fun dismissDialog(){
+        _dialogState.value = NotificationDialogState(show = false)
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.room.Room
 import com.google.gson.Gson
@@ -89,14 +90,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        database = Room.databaseBuilder(
-            applicationContext,
-            GamepadDatabase::class.java,
-            "gamepad_database"
-        ).build()
+        database = GamepadDatabase.getInstance(applicationContext)
 
         bleManager = BleManager(this)
-        bleRepository = BleRepository(bleManager)
+        bleRepository = BleRepository(bleManager, gson)
         stepDetectorRepository = StepDetectorRepository(this)
         accelerometerRepository = AccelerometerRepository(this)
         gamepadRepository = GamepadRepository(database.gamepadDao(), gson)

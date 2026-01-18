@@ -29,6 +29,8 @@ import kotlin.coroutines.resume
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
 import android.os.ParcelUuid
+import kotlinx.coroutines.flow.asStateFlow
+import java.lang.StringBuilder
 
 
 class BleManager(private val context: Context) {
@@ -49,12 +51,10 @@ class BleManager(private val context: Context) {
     private val serverScanFilter = ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build()
     private val scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
     private val _receivedData = MutableStateFlow<String>("")
-    val receivedData: StateFlow<String> = _receivedData
+    val receivedData: StateFlow<String> = _receivedData.asStateFlow()
     private var pendingWriteContinuation: CancellableContinuation<Boolean>? = null
+    private val dataBuffer = StringBuilder()
     private val writeMutex = Mutex()
-
-    var startTime: Long = 0
-
 
     // Scanning for devices
     private val scanCallback = object: ScanCallback() {
@@ -116,15 +116,16 @@ class BleManager(private val context: Context) {
     // Connecting to device
     private val gattCallback = object: BluetoothGattCallback() {
 
+
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             when(newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    Log.d(TAG, "Connected to GATT Server")
-                    _connectionState.value = BleConnectionState.CONNECTED
+                    Log.d(TAG, "Connected to GATT Server. Discovering services...")
+                    // When a new connection is made, clear the old buffer
+                    dataBuffer.clear()
 
-                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-
+                    // This logic is correct, discover services after connecting
                     if(ActivityCompat.checkSelfPermission(
                             context,
                             Manifest.permission.BLUETOOTH_CONNECT
@@ -145,17 +146,38 @@ class BleManager(private val context: Context) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if(status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(TAG, "Service discovered")
-
-                gatt.services.forEach { service ->
-                    Log.d(TAG, "Service UUID: ${service.uuid}")
-                    service.characteristics.forEach { char ->
-                        Log.d(TAG, "Characteristic UUID: ${char.uuid}")
-                    }
-                }
+                Log.d(TAG, "Service discovered. Enabling notifications...")
                 enableNotifications(SERVICE_UUID, NOTIFY_CHAR_UUID)
             } else {
                 Log.e(TAG, "Service discovery failed: $status")
+            }
+        }
+
+        // 2. Add onDescriptorWrite to confirm notifications are enabled
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        override fun onDescriptorWrite(
+            gatt: BluetoothGatt?,
+            descriptor: BluetoothGattDescriptor?,
+            status: Int
+        ) {
+            super.onDescriptorWrite(gatt, descriptor, status)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "SUCCESS: Descriptor written. Notifications are ON.")
+                _connectionState.value = BleConnectionState.CONNECTED
+
+                gatt?.requestMtu(512)
+            } else {
+                Log.e(TAG, "FAILURE: Descriptor write failed: $status")
+                disconnect()
+            }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
+            super.onMtuChanged(gatt, mtu, status)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.i(TAG, "MTU updated to $mtu")
+            } else {
+                Log.w(TAG, "MTU change failed: $status")
             }
         }
 
@@ -188,22 +210,27 @@ class BleManager(private val context: Context) {
             }
         }
 
-        // Called when the server notifies us
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
         ) {
-            val data = value.decodeToString()
-            Log.d(TAG, "Notification received: $data")
-            _receivedData.value = data
+            val chunk = value.decodeToString()
+            Log.d(TAG, "Chunk received: $chunk")
 
-            val endTime = System.nanoTime()
-            val rttNs = endTime - startTime
-            val rttMs = rttNs / 1_000_000.0 // Convert nanoseconds to milliseconds
+            dataBuffer.append(chunk)
 
-            Log.d("Latency", "Round Trip Time: $rttMs ms")
-            Log.d("Latency", "Estimated One-Way: ${rttMs / 2} ms")
+            if (chunk.contains('\u0000')) {
+                Log.d(TAG, "End of transmission detected.")
+
+                val fullMessage = dataBuffer.toString().replace("\u0000", "")
+
+                Log.d(TAG, "Full message reassembled: $fullMessage")
+
+                _receivedData.value = fullMessage
+
+                dataBuffer.clear()
+            }
         }
     }
 
@@ -299,13 +326,19 @@ class BleManager(private val context: Context) {
         if(characteristic != null){
             bluetoothGatt?.setCharacteristicNotification(characteristic, true)
 
-            val descriptor = characteristic.getDescriptor(
-                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-            )
-            descriptor?.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            bluetoothGatt?.writeDescriptor(descriptor)
+            // Standard Client Characteristic Configuration Descriptor UUID
+            val cccDescriptorUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+            val descriptor = characteristic.getDescriptor(cccDescriptorUuid)
 
-            Log.d(TAG, "Notifications enabled for $characteristicUUID")
+            if (descriptor != null) {
+                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                Log.d(TAG, "Writing ENABLE_NOTIFICATION_VALUE to descriptor...")
+                bluetoothGatt?.writeDescriptor(descriptor)
+            } else {
+                Log.e(TAG, "CCC Descriptor not found for characteristic $characteristicUUID")
+            }
+        } else {
+            Log.e(TAG, "Notify characteristic not found.")
         }
     }
 

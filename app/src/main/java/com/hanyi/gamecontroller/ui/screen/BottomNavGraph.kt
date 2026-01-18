@@ -50,4 +50,12 @@ fun BottomNavGraph(
         }
     }
 
+    val dialogState by viewModel.dialogState.collectAsState()
+
+    if(dialogState.show){
+        NotificationDialog(
+            viewModel = viewModel,
+            dialogState = dialogState
+        )
+    }
 }
