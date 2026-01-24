@@ -4,9 +4,9 @@ import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.domain.model.BlePacket
 import com.hanyi.gamecontroller.domain.model.CommandPacket
+import com.hanyi.gamecontroller.domain.model.Constants.SERVICE_UUID
+import com.hanyi.gamecontroller.domain.model.Constants.WRITE_CHAR_UUID
 import com.hanyi.gamecontroller.domain.model.MovementPacket
-import com.hanyi.gamecontroller.domain.model.SERVICE_UUID
-import com.hanyi.gamecontroller.domain.model.WRITE_CHAR_UUID
 
 class CommandSender(
     private val bleRepository: BleRepository,

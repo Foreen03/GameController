@@ -11,6 +11,7 @@ import com.hanyi.gamecontroller.data.controller.CommandSender
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
 import com.hanyi.gamecontroller.data.sensor.StepDetectorRepository
+import com.hanyi.gamecontroller.domain.model.BleConnectionState
 import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.domain.model.NotificationDialogState
@@ -19,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive // Import isActive
 
 class MainViewModel(
     private val bleRepository: BleRepository,
@@ -44,8 +46,20 @@ class MainViewModel(
     private val _dialogState = MutableStateFlow(NotificationDialogState())
     val dialogState: StateFlow<NotificationDialogState> = _dialogState
 
+    private val _isReconnecting = MutableStateFlow(false)
+    val isReconnecting: StateFlow<Boolean> = _isReconnecting
+
     private val _gamepads = MutableStateFlow<List<GamepadConfig>>(emptyList())
     val gamepads: StateFlow<List<GamepadConfig>> = _gamepads
+
+    private var lastHeartbeatTime = 0L
+    private val HEARTBEAT_TIMEOUT = 2500L
+    private val RECONNECT_DELAY_MS = 2000L
+    private val MAX_RETRY_DELAY_MS = 10_000L
+    private var reconnectDelay = RECONNECT_DELAY_MS
+    private var reconnectJob: Job? = null
+    private var heartbeatJob: Job? = null
+    private var selectedDisconnect = false
 
     init {
         observeBle()
@@ -54,17 +68,20 @@ class MainViewModel(
         viewModelScope.launch {
             steps.collect { latestSteps.value = it }
         }
+
         viewModelScope.launch {
             accel.collect { latestAccel.value = it }
         }
+
         viewModelScope.launch {
             gamepadRepository.getAllGamepads().collect { list ->
                 _gamepads.value = list
             }
         }
+
         viewModelScope.launch {
             bleRepository.layoutEvents.collect { config ->
-                Log.d("MainViewModel", "Received layout config from bleRepository: ${gson.toJson(config)}")
+                Log.d("MainViewModel", "Received layout config: ${gson.toJson(config)}")
                 onNotificationReceived(
                     title = "New Layout Received",
                     message = "A new custom layout has received from PC!"
@@ -72,13 +89,26 @@ class MainViewModel(
                 gamepadRepository.insertGamepad(config)
             }
         }
+
         viewModelScope.launch {
-            bleRepository.connectionEvents.collect { state ->
-                onNotificationReceived(
-                    title = "PC Disconnected",
-                    message = "Server Stopped"
-                )
-                bleRepository.disconnect()
+            bleRepository.connectionState.collect { state ->
+                when (state) {
+                    BleConnectionState.CONNECTED -> {
+                        startHeartbeatWatchdog()
+                        selectedDisconnect = false
+                        reconnectDelay = RECONNECT_DELAY_MS
+                    }
+                    BleConnectionState.DISCONNECTED -> {
+                        stopHeartbeatWatchdog()
+                    }
+                    else -> Unit
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            bleRepository.heartbeatEvent.collect { time ->
+                lastHeartbeatTime = time
             }
         }
     }
@@ -132,13 +162,45 @@ class MainViewModel(
         )
     }
 
-    fun startScan() = bleRepository.startScan()
+    fun startScan() {
+        // Safe call: BleManager usually handles the check internally, but we can catch just in case
+        try {
+            bleRepository.startScan()
+        } catch (e: SecurityException) {
+            Log.e("MainViewModel", "Permission denied for startScan")
+            requestBlePermission()
+        }
+    }
 
-    fun stopScan() = bleRepository.stopScan()
+    fun stopScan() {
+        try {
+            bleRepository.stopScan()
+        } catch (e: SecurityException) {
+            Log.e("MainViewModel", "Permission denied for stopScan")
+        }
+    }
 
-    fun connect(device: BluetoothDevice) = bleRepository.connect(device)
+    fun connect(device: BluetoothDevice) {
+        try {
+            bleRepository.connect(device)
+        } catch (e: SecurityException) {
+            Log.e("MainViewModel", "Permission denied for connect")
+            requestBlePermission()
+        }
+    }
 
-    fun disconnect() = bleRepository.disconnect()
+    fun disconnect() {
+        selectedDisconnect = true
+        stopHeartbeatWatchdog()
+        reconnectJob?.cancel()
+        _isReconnecting.value = false
+        dismissDialog()
+        try {
+            bleRepository.disconnect()
+        } catch (e: SecurityException) {
+            Log.e("MainViewModel", "Permission denied for disconnect")
+        }
+    }
 
     fun setButton(id: String, pressed: Boolean){
         buttonState.update { it + (id to pressed) }
@@ -210,6 +272,79 @@ class MainViewModel(
                 message = message
             )
         }
+    }
+
+    private fun handlePcDisconnected() {
+        if(selectedDisconnect) return
+        if (_uiState.value.connectionState == BleConnectionState.DISCONNECTED) return
+        lastHeartbeatTime = 0L
+
+        try {
+            bleRepository.disconnect()
+        } catch (e: SecurityException) {
+            Log.e("MainViewModel", "Cannot disconnect: Permission denied")
+        }
+
+        _isReconnecting.value = true
+        reconnectBle()
+    }
+
+    private fun reconnectBle() {
+        if (selectedDisconnect) return
+        if (reconnectJob?.isActive == true) return
+
+        reconnectJob = viewModelScope.launch {
+            delay(500)
+
+            while (isActive) {
+                Log.d("BLE", "Reconnecting loop iteration...")
+
+                try {
+                    val success = bleRepository.reconnect()
+                    if (success) {
+                        Log.d("BLE", "Reconnect successful")
+                        _isReconnecting.value = false
+                        dismissDialog()
+                        return@launch
+                    }
+                } catch (e: SecurityException) {
+                    Log.e("MainViewModel", "Reconnect failed: Permission denied")
+                    _isReconnecting.value = false
+                    requestBlePermission()
+                    return@launch
+                }
+
+                Log.d("BLE", "Reconnect attempt failed, retrying in $reconnectDelay ms")
+                delay(reconnectDelay)
+
+                reconnectDelay = minOf(
+                    reconnectDelay * 2,
+                    MAX_RETRY_DELAY_MS
+                )
+            }
+        }
+    }
+
+    private fun startHeartbeatWatchdog() {
+        heartbeatJob?.cancel()
+        heartbeatJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+
+                if (lastHeartbeatTime == 0L) continue
+
+                val now = System.currentTimeMillis()
+                if (now - lastHeartbeatTime > HEARTBEAT_TIMEOUT) {
+                    handlePcDisconnected()
+                    return@launch
+                }
+            }
+        }
+    }
+
+    private fun stopHeartbeatWatchdog() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
     }
 
     fun dismissDialog(){

@@ -51,11 +51,16 @@ fun BottomNavGraph(
     }
 
     val dialogState by viewModel.dialogState.collectAsState()
+    val isReconnecting by viewModel.isReconnecting.collectAsState()
 
     if(dialogState.show){
         NotificationDialog(
             viewModel = viewModel,
             dialogState = dialogState
         )
+    }
+
+    if(isReconnecting){
+        ReconnectDialog(viewModel = viewModel)
     }
 }

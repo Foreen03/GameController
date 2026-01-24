@@ -1,12 +1,11 @@
 package com.hanyi.gamecontroller.data.ble
 
+import android.Manifest
 import com.hanyi.gamecontroller.domain.model.BleConnectionState
 import android.bluetooth.BluetoothDevice
 import android.util.Log
-import androidx.activity.result.launch
+import androidx.annotation.RequiresPermission
 import com.google.gson.Gson
-import com.hanyi.gamecontroller.domain.model.BlePacket
-import com.hanyi.gamecontroller.domain.model.BleUiState
 import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.domain.model.PCPacket
 import kotlinx.coroutines.CoroutineScope
@@ -35,8 +34,8 @@ class BleRepository(
     private val _layoutEvents = MutableSharedFlow<GamepadConfig>(replay = 1)
     val layoutEvents = _layoutEvents.asSharedFlow()
 
-    private val _connectionEvents = MutableSharedFlow<BleConnectionState>(replay = 1)
-    val connectionEvents = _connectionEvents.asSharedFlow()
+    private val _heartbeatEvents = MutableSharedFlow<Long>(replay = 1)
+    val heartbeatEvent = _heartbeatEvents.asSharedFlow()
 
     init {
         observeIncoming()
@@ -50,6 +49,9 @@ class BleRepository(
 
     fun disconnect() = bleManager.disconnect()
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    suspend fun reconnect() = bleManager.reconnectLastDevice()
+
     suspend fun sendData(
         serviceUUID: UUID,
         charUUID: UUID,
@@ -59,16 +61,6 @@ class BleRepository(
             serviceUuid = serviceUUID,
             characteristicUUID = charUUID,
             data = data
-        )
-    }
-
-    fun readData(
-        serviceUUID: UUID,
-        readUUID: UUID
-    ){
-        return bleManager.readCharacteristic(
-            serviceUuid = serviceUUID,
-            characteristicUUID = readUUID
         )
     }
 
@@ -98,10 +90,10 @@ class BleRepository(
                     }
                 }
 
-                "PC_DISCONNECTED" -> {
-                    val state = BleConnectionState.DISCONNECTED
+                "PC_HEARTBEAT" -> {
+                    val time = System.currentTimeMillis()
                     CoroutineScope(Dispatchers.IO).launch {
-                        _connectionEvents.emit(state)
+                        _heartbeatEvents.emit(time)
                     }
                 }
 

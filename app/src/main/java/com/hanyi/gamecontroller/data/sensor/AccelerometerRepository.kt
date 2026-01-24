@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 class AccelerometerRepository(
     context: Context
-): BaseSensorRepository(
+) : BaseSensorRepository(
     context,
     Sensor.TYPE_ACCELEROMETER,
     SensorManager.SENSOR_DELAY_FASTEST
@@ -26,9 +26,8 @@ class AccelerometerRepository(
         val rawZ = event.values[2]
 
         // Remap axes based on screen rotation
-        val (remappedX, remappedY, remappedZ) = remapAxes(rawX, rawY, rawZ)
-
-        _accel.value = Triple(remappedX, remappedY, remappedZ)
+        val (x, y, z) = remapAxes(rawX, rawY, rawZ)
+        _accel.value = Triple(x, y, z)
     }
 
     private fun remapAxes(x: Float, y: Float, z: Float): Triple<Float, Float, Float> {
@@ -37,18 +36,22 @@ class AccelerometerRepository(
                 // Portrait (natural orientation)
                 Triple(x, y, z)
             }
+
             Surface.ROTATION_90 -> {
                 // Landscape (home button on right)
                 Triple(y, -x, z)
             }
+
             Surface.ROTATION_180 -> {
                 // Portrait upside down
                 Triple(-x, -y, z)
             }
+
             Surface.ROTATION_270 -> {
                 // Landscape (home button on left)
                 Triple(-y, x, z)
             }
+
             else -> Triple(x, y, z)
         }
     }
