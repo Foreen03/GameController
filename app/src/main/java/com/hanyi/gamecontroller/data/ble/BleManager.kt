@@ -48,7 +48,6 @@ class BleManager(private val context: Context) {
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private var bluetoothGatt: BluetoothGatt? = null
 
-    // Main dispatcher is safer for BLE state updates
     private val bleScope = CoroutineScope(Dispatchers.Main)
 
     private val _connectionState = MutableStateFlow(BleConnectionState.DISCONNECTED)
@@ -74,7 +73,6 @@ class BleManager(private val context: Context) {
             preference.edit { putString("last_device", value) }
         }
 
-    // --- HELPER TO FORCE CLEAR CACHE ---
     private fun refreshDeviceCache(gatt: BluetoothGatt): Boolean {
         try {
             val localMethod = gatt.javaClass.getMethod("refresh")
@@ -133,10 +131,8 @@ class BleManager(private val context: Context) {
                     dataBuffer.clear()
 
                     bleScope.launch {
-                        // 1. Force refresh the cache to delete the "Bad" service map
                         refreshDeviceCache(gatt)
 
-                        // 2. Wait for the stack to process the refresh (Crucial!)
                         Log.d(TAG, "Waiting 1000ms for cache refresh...")
                         delay(1000)
 
@@ -218,7 +214,7 @@ class BleManager(private val context: Context) {
 
     fun disconnect() {
         if(ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED) return
-        _connectionState.value = BleConnectionState.DISCONNECTING
+        _connectionState.value = BleConnectionState.DISCONNECTED
         bluetoothGatt?.disconnect()
     }
 
@@ -258,11 +254,9 @@ class BleManager(private val context: Context) {
                 disconnect()
             }
         } else {
-            // Log the available services for debugging
             val foundServices = gatt.services.map { it.uuid.toString() }
             Log.e(TAG, "Notify characteristic not found. Available Services: $foundServices")
 
-            // Critical: If we STILL don't see it, disconnect so the ViewModel can try again
             disconnect()
         }
     }
@@ -271,29 +265,25 @@ class BleManager(private val context: Context) {
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     suspend fun reconnectLastDevice(): Boolean {
-        // 1. Clean up old connection state
         bluetoothGatt?.close()
         bluetoothGatt = null
         _connectionState.value = BleConnectionState.CONNECTING
 
         Log.d(TAG, "Reconnecting: Starting scan for server...")
 
-        // 2. Start Scanning using your EXISTING startScan()
-        // This automatically filters by SERVICE_UUID and updates _discoveredDevices
         startScan()
 
-        // 3. Wait for the FIRST device to appear in the list (Handling MAC randomization)
         val device = try {
-            withTimeout(10000L) { // 10s timeout to find the server
+            withTimeout(10000L) {
                 _discoveredDevices
-                    .filter { it.isNotEmpty() } // Wait until list is not empty
-                    .map { it.first() }         // Pick the first found device
-                    .first()                    // Suspend here until value emits
+                    .filter { it.isNotEmpty() }
+                    .map { it.first() }
+                    .first()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Reconnection scan timed out (Server not found).")
             stopScan()
-            disconnect() // Reset state to DISCONNECTED
+            disconnect()
             return false
         }
 
