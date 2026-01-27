@@ -78,6 +78,12 @@ class BleRepository(
         try {
             val packet = gson.fromJson(raw, PCPacket::class.java)
 
+            // threat incoming packets as heartbeat
+            val time = System.currentTimeMillis()
+            CoroutineScope(Dispatchers.IO).launch {
+                _heartbeatEvents.emit(time)
+            }
+
             when (packet.type) {
                 "GAMEPAD_LAYOUT" -> {
                     val layoutJson = packet.data

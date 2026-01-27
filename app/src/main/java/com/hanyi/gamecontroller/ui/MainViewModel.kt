@@ -53,7 +53,7 @@ class MainViewModel(
     val gamepads: StateFlow<List<GamepadConfig>> = _gamepads
 
     private var lastHeartbeatTime = 0L
-    private val HEARTBEAT_TIMEOUT = 2500L
+    private val HEARTBEAT_TIMEOUT = 6000L
     private val RECONNECT_DELAY_MS = 2000L
     private val MAX_RETRY_DELAY_MS = 10_000L
     private var reconnectDelay = RECONNECT_DELAY_MS
@@ -82,6 +82,7 @@ class MainViewModel(
         viewModelScope.launch {
             bleRepository.layoutEvents.collect { config ->
                 Log.d("MainViewModel", "Received layout config: ${gson.toJson(config)}")
+                lastHeartbeatTime = System.currentTimeMillis()
                 onNotificationReceived(
                     title = "New Layout Received",
                     message = "A new custom layout has received from PC!"
