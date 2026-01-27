@@ -15,72 +15,75 @@ class StepDetectorRepository(
     Sensor.TYPE_ACCELEROMETER,
     SensorManager.SENSOR_DELAY_FASTEST
 ) {
+
     private val _steps = MutableStateFlow(0)
     val steps: StateFlow<Int> = _steps
 
     private var stepCount = 0
 
-    private val gravityAlpha = 0.9f
+    private val ALPHA = 0.8f
     private val gravity = FloatArray(3)
-    private val linearAcceleration = FloatArray(3)
 
-    private val VELOCITY_RING_SIZE = 50
-    private val velocityRing = FloatArray(VELOCITY_RING_SIZE)
-    private var velocityIndex = 0
+    private val WINDOW_SIZE = 10
+    private val window = FloatArray(WINDOW_SIZE)
+    private var windowIndex = 0
 
-    private var lastStepTimeNs: Long = 0
-    private var lastExtremum = 0f
-    private var lastDiff = 0f
-    private var isUpward = false
+    private var lastValue = 0f
+    private var lastDirection = 0
+    private var lastPeak = 0f
+    private var lastValley = 0f
 
-    private val STEP_THRESHOLD = 4.0f
-    private val STEP_DELAY_NS = 250_000_000L // 250ms (nanoseconds)
+    private val STEP_THRESHOLD = 1.2f
+    private val MIN_STEP_INTERVAL_NS = 250_000_000L
+    private var lastStepTime = 0L
 
     override fun onSensorValueChanged(event: SensorEvent) {
-        gravity[0] = gravityAlpha * gravity[0] + (1 - gravityAlpha) * event.values[0]
-        gravity[1] = gravityAlpha * gravity[1] + (1 - gravityAlpha) * event.values[1]
-        gravity[2] = gravityAlpha * gravity[2] + (1 - gravityAlpha) * event.values[2]
 
-        linearAcceleration[0] = event.values[0] - gravity[0]
-        linearAcceleration[1] = event.values[1] - gravity[1]
-        linearAcceleration[2] = event.values[2] - gravity[2]
+        gravity[0] = ALPHA * gravity[0] + (1 - ALPHA) * event.values[0]
+        gravity[1] = ALPHA * gravity[1] + (1 - ALPHA) * event.values[1]
+        gravity[2] = ALPHA * gravity[2] + (1 - ALPHA) * event.values[2]
 
-        val currentMagnitude = sqrt(
-            (linearAcceleration[0] * linearAcceleration[0] +
-                    linearAcceleration[1] * linearAcceleration[1] +
-                    linearAcceleration[2] * linearAcceleration[2]).toDouble()
-        ).toFloat()
+        val x = event.values[0] - gravity[0]
+        val y = event.values[1] - gravity[1]
+        val z = event.values[2] - gravity[2]
 
-        detectStep(currentMagnitude, event.timestamp)
+        val magnitude = sqrt(x * x + y * y + z * z)
+
+        detectStep(magnitude, event.timestamp)
     }
 
-    private fun detectStep(currentMagnitude: Float, timestampNs: Long) {
-        velocityRing[velocityIndex] = currentMagnitude
-        velocityIndex = (velocityIndex + 1) % VELOCITY_RING_SIZE
+    private fun detectStep(value: Float, timestamp: Long) {
 
-        var velocityEstimate = 0f
-        for (v in velocityRing) {
-            velocityEstimate += v
-        }
-        velocityEstimate /= VELOCITY_RING_SIZE
+        window[windowIndex] = value
+        windowIndex = (windowIndex + 1) % WINDOW_SIZE
 
-        val diff = currentMagnitude - velocityEstimate
+        var avg = 0f
+        for (v in window) avg += v
+        avg /= WINDOW_SIZE
 
-        if (diff > lastDiff && !isUpward) {
-            isUpward = true
-        } else if (diff < lastDiff && isUpward) {
-            isUpward = false
-
-            if (lastExtremum > STEP_THRESHOLD &&
-                timestampNs - lastStepTimeNs > STEP_DELAY_NS) {
-
-                stepCount++
-                _steps.tryEmit(stepCount)
-                lastStepTimeNs = timestampNs
-            }
+        val direction = when {
+            avg > lastValue -> 1
+            avg < lastValue -> -1
+            else -> 0
         }
 
-        lastDiff = diff
-        lastExtremum = currentMagnitude
+        if (direction == -1 && lastDirection == 1) {
+            lastPeak = lastValue
+        } else if (direction == 1 && lastDirection == -1) {
+            lastValley = lastValue
+        }
+
+        val peakToValley = lastPeak - lastValley
+
+        if (peakToValley > STEP_THRESHOLD &&
+            timestamp - lastStepTime > MIN_STEP_INTERVAL_NS
+        ) {
+            stepCount++
+            _steps.tryEmit(stepCount)
+            lastStepTime = timestamp
+        }
+
+        lastDirection = direction
+        lastValue = avg
     }
 }
