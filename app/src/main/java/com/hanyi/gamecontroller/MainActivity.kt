@@ -17,15 +17,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.room.Room
 import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.GamepadRepository
 import com.hanyi.gamecontroller.data.ble.BleManager
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.controller.CommandSender
-import com.hanyi.gamecontroller.data.local.GamepadDao
 import com.hanyi.gamecontroller.data.local.GamepadDatabase
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
 import com.hanyi.gamecontroller.data.sensor.SensorCoordinator
@@ -35,7 +32,6 @@ import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.screen.MainScreen
 import com.hanyi.gamecontroller.ui.theme.GameControllerTheme
 import com.hanyi.gamecontroller.util.PermissionHelper
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.IOException
 
