@@ -67,6 +67,9 @@ class BleManager(private val context: Context) {
     private val writeMutex = Mutex()
     private val preference = context.getSharedPreferences("ble_prefs", Context.MODE_PRIVATE)
 
+    private val _incomingByteCount = MutableStateFlow(0)
+    val incomingByteCount: StateFlow<Int> = _incomingByteCount.asStateFlow()
+
     private var lastDeviceAddress: String?
         get() = preference.getString("last_device", null)
         set(value){
@@ -192,10 +195,12 @@ class BleManager(private val context: Context) {
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
             val chunk = value.decodeToString()
             dataBuffer.append(chunk)
+            _incomingByteCount.value = dataBuffer.length
             if (chunk.contains('\u0000')) {
                 val fullMessage = dataBuffer.toString().replace("\u0000", "")
                 _receivedData.value = fullMessage
                 dataBuffer.clear()
+                _incomingByteCount.value = 0
             }
         }
     }

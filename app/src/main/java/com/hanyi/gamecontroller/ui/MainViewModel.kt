@@ -20,7 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive // Import isActive
+import kotlinx.coroutines.isActive
 
 class MainViewModel(
     private val bleRepository: BleRepository,
@@ -110,6 +110,22 @@ class MainViewModel(
         viewModelScope.launch {
             bleRepository.heartbeatEvent.collect { time ->
                 lastHeartbeatTime = time
+            }
+        }
+
+        viewModelScope.launch {
+            bleRepository.transferProgress.collect { progress ->
+                if (progress > 0f && progress < 1f) {
+                    // Show Progress Dialog
+                    _dialogState.value = NotificationDialogState(
+                        show = true,
+                        title = "Downloading Layout...",
+                        message = "${(progress * 100).toInt()}%",
+                        progress = progress
+                    )
+                } else if (progress == 0f && _dialogState.value.progress != null) {
+                    dismissDialog()
+                }
             }
         }
     }
@@ -333,6 +349,15 @@ class MainViewModel(
                 delay(1000)
 
                 if (lastHeartbeatTime == 0L) continue
+
+                val isTransferring = bleRepository.transferProgress.value > 0f
+
+                if (isTransferring) {
+                    // PC is active (sending data), so we manually update the
+                    // lastHeartbeatTime to "now" to keep the connection alive.
+                    lastHeartbeatTime = System.currentTimeMillis()
+                    continue
+                }
 
                 val now = System.currentTimeMillis()
                 if (now - lastHeartbeatTime > HEARTBEAT_TIMEOUT) {

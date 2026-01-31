@@ -21,7 +21,16 @@ data class GamepadMeta(
 @Serializable
 data class GamepadTheme(
     val backgroundColor: String,
+    val backgroundImage: BackgroundImageConfig? = null,
     val button: ButtonTheme
+)
+
+@Serializable
+data class BackgroundImageConfig(
+    val enabled: Boolean = false,
+    val type: String,
+    val value: String,
+    val scaleType: String = "fill"
 )
 
 @Serializable

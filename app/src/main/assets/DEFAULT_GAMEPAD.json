@@ -8,6 +8,12 @@
   },
   "theme": {
     "backgroundColor": "#CAE7D3",
+    "backgroundImage": {
+      "enabled": true,
+      "type": "url",
+      "value": "https://i.postimg.cc/65MnP8Fj/plufow-le-studio-5Q6y-ZN8cku-Y-unsplash.jpg",
+      "scaleType": "fill"
+    },
     "button": {
       "color": "#6750A4",
       "pressedAlpha": 0.6,

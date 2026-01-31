@@ -8,11 +8,14 @@ import androidx.annotation.RequiresPermission
 import com.google.gson.Gson
 import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.domain.model.PCPacket
+import com.hanyi.gamecontroller.domain.model.TransferHeader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -36,9 +39,14 @@ class BleRepository(
 
     private val _heartbeatEvents = MutableSharedFlow<Long>(replay = 1)
     val heartbeatEvent = _heartbeatEvents.asSharedFlow()
+    private val _transferProgress = MutableStateFlow(0f)
+    val transferProgress = _transferProgress.asStateFlow()
+
+    private var expectedTotalBytes = 0
 
     init {
         observeIncoming()
+        observeProgress()
     }
 
     fun startScan() = bleManager.startScan()
@@ -74,8 +82,28 @@ class BleRepository(
             }.launchIn(CoroutineScope(Dispatchers.IO))
     }
 
+    private fun observeProgress() {
+        bleManager.incomingByteCount
+            .onEach { currentBytes ->
+                if (expectedTotalBytes > 0) {
+                    val percentage = currentBytes.toFloat() / expectedTotalBytes.toFloat()
+                    // Clamp between 0 and 1
+                    _transferProgress.value = percentage.coerceIn(0f, 1f)
+                } else {
+                    _transferProgress.value = 0f
+                }
+            }.launchIn(CoroutineScope(Dispatchers.IO))
+    }
+
     private fun handleIncoming(raw: String) {
         try {
+            if (raw.contains("TRANSFER_START")) {
+                val header = gson.fromJson(raw, TransferHeader::class.java)
+                expectedTotalBytes = header.totalLength
+                Log.d("BLE", "Expecting transfer of ${header.totalLength} bytes")
+                return
+            }
+
             val packet = gson.fromJson(raw, PCPacket::class.java)
 
             // threat incoming packets as heartbeat
