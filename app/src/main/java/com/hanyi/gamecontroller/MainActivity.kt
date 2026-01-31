@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
         bleRepository = BleRepository(bleManager, gson)
         stepDetectorRepository = StepDetectorRepository(this)
         accelerometerRepository = AccelerometerRepository(this)
-        gamepadRepository = GamepadRepository(database.gamepadDao(), gson)
+        gamepadRepository = GamepadRepository(this, database.gamepadDao(), gson)
         commandSender = CommandSender(
             bleRepository = bleRepository,
             gson = gson

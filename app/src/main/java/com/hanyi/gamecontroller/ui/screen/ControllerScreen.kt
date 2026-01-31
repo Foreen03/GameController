@@ -37,6 +37,7 @@ import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.icon.LucideEye
 import com.hanyi.gamecontroller.ui.icon.LucideEyeOff
 import kotlinx.coroutines.flow.map
+import java.io.File
 
 @Composable
 fun ControllerScreen(
@@ -72,7 +73,6 @@ fun ControllerScreen(
         "portrait" -> LockScreenOrientation(orientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
     }
 
-    // Safe Color Parsing
     val backgroundColor = remember(config.theme.backgroundColor) {
         try {
             Color(config.theme.backgroundColor.toColorInt())
@@ -86,8 +86,7 @@ fun ControllerScreen(
             .fillMaxSize()
             .background(backgroundColor)
     ) {
-        // --- LAYER 1: Background Image ---
-        // We render this first so it sits behind the buttons
+
         val bgConfig = config.theme.backgroundImage
         if (bgConfig?.enabled == true) {
             val contentScale = when (bgConfig.scaleType) {
@@ -96,36 +95,45 @@ fun ControllerScreen(
                 else -> ContentScale.FillBounds
             }
 
-            if (bgConfig.type == "url") {
-                AsyncImage(
-                    model = bgConfig.value,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = contentScale
-                )
-            } else if (bgConfig.type == "base64") {
-                // Decode Base64 to Bitmap efficiently
-                val bitmap = remember(bgConfig.value) {
-                    try {
-                        val decodedBytes = Base64.decode(bgConfig.value, Base64.DEFAULT)
-                        BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size).asImageBitmap()
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                bitmap?.let {
-                    Image(
-                        bitmap = it,
-                        contentDescription = "Background",
+            when (bgConfig.type) {
+                "file" -> {
+                    AsyncImage(
+                        model = File(bgConfig.value),
+                        contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = contentScale
                     )
                 }
+                "url" -> {
+                    AsyncImage(
+                        model = bgConfig.value,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = contentScale
+                    )
+                }
+                "base64" -> {
+                    val bitmap = remember(bgConfig.value) {
+                        try {
+                            val decodedBytes = Base64.decode(bgConfig.value, Base64.DEFAULT)
+                            BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size).asImageBitmap()
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    bitmap?.let {
+                        Image(
+                            bitmap = it,
+                            contentDescription = "Background",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = contentScale
+                        )
+                    }
+                }
             }
         }
 
-        // --- LAYER 2: UI Logic & Controls ---
         val screenWidth = maxWidth
         val screenHeight = maxHeight
         val safeArea = config.layout.safeArea
