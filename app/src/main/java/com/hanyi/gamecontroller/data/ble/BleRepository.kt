@@ -122,6 +122,7 @@ class BleRepository(
                     CoroutineScope(Dispatchers.IO).launch {
                         _layoutEvents.emit(layout)
                     }
+                    expectedTotalBytes = 0
                 }
 
                 "PC_HEARTBEAT" -> {

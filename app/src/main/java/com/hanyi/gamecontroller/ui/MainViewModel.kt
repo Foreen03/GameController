@@ -46,6 +46,9 @@ class MainViewModel(
     private val _dialogState = MutableStateFlow(NotificationDialogState())
     val dialogState: StateFlow<NotificationDialogState> = _dialogState
 
+    private val _progressState = MutableStateFlow(NotificationDialogState())
+    val progressState: StateFlow<NotificationDialogState> = _progressState
+
     private val _isReconnecting = MutableStateFlow(false)
     val isReconnecting: StateFlow<Boolean> = _isReconnecting
 
@@ -116,6 +119,7 @@ class MainViewModel(
         viewModelScope.launch {
             bleRepository.transferProgress.collect { progress ->
                 if (progress > 0f && progress < 1f) {
+                    Log.e("Progress", progress.toString())
                     // Show Progress Dialog
                     _dialogState.value = NotificationDialogState(
                         show = true,
@@ -124,7 +128,7 @@ class MainViewModel(
                         progress = progress
                     )
                 } else if (progress == 0f && _dialogState.value.progress != null) {
-                    dismissDialog()
+                    dismissProgress()
                 }
             }
         }
@@ -375,5 +379,9 @@ class MainViewModel(
 
     fun dismissDialog(){
         _dialogState.value = NotificationDialogState(show = false)
+    }
+
+    fun dismissProgress(){
+        _progressState.value = NotificationDialogState(show = false)
     }
 }
