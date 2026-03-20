@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.GamepadRepository
+import com.hanyi.gamecontroller.data.SystemInterruptionRepository
 import com.hanyi.gamecontroller.data.ble.BleManager
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.controller.CommandSender
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var accelerometerRepository: AccelerometerRepository
     private lateinit var gamepadRepository: GamepadRepository
     private lateinit var commandSender: CommandSender
+    private lateinit var systemInterruptionRepository: SystemInterruptionRepository
     private var gson = Gson()
 
     private val requestBlePermissionsLauncher =
@@ -101,6 +103,7 @@ class MainActivity : ComponentActivity() {
             stepDetectorRepository,
             accelerometerRepository
         )
+        systemInterruptionRepository = SystemInterruptionRepository(this)
 
         lifecycleScope.launch {
             val hasGamepads = gamepadRepository.hasAnyGamepad()
@@ -121,7 +124,8 @@ class MainActivity : ComponentActivity() {
             stepRepo = stepDetectorRepository,
             accelRepo = accelerometerRepository,
             gson = gson,
-            gamepadRepository = gamepadRepository
+            gamepadRepository = gamepadRepository,
+            systemInterruptionRepository = systemInterruptionRepository
         )
 
         enableEdgeToEdge()
@@ -163,14 +167,16 @@ class MainActivity : ComponentActivity() {
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.READ_PHONE_STATE,
                 )
             } else {
                 arrayOf(
                     Manifest.permission.BLUETOOTH,
                     Manifest.permission.BLUETOOTH_ADMIN,
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.READ_PHONE_STATE,
                 )
             }
 

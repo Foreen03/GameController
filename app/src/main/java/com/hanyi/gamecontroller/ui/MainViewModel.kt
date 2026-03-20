@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.hanyi.gamecontroller.data.GamepadRepository
+import com.hanyi.gamecontroller.data.SystemInterruptionRepository
 import com.hanyi.gamecontroller.data.ble.BleRepository
 import com.hanyi.gamecontroller.data.controller.CommandSender
 import com.hanyi.gamecontroller.data.sensor.AccelerometerRepository
@@ -29,7 +30,8 @@ class MainViewModel(
     private val gamepadRepository: GamepadRepository,
     stepRepo: StepDetectorRepository,
     accelRepo: AccelerometerRepository,
-    private val gson: Gson
+    private val gson: Gson,
+    private val systemInterruptionRepository: SystemInterruptionRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(BleUiState())
@@ -169,6 +171,23 @@ class MainViewModel(
 
         if(granted){
             requestActivityPermission()
+            observeSystemInterruptions()
+        }
+    }
+
+    private var interruptionJob: Job? = null
+    private fun observeSystemInterruptions() {
+        interruptionJob?.cancel()
+        interruptionJob = viewModelScope.launch {
+            systemInterruptionRepository.observeInterruption().collect {
+                if (!uiState.value.isPaused) {
+                    sendPauseCommand()
+                    onNotificationReceived(
+                        "System Interruption",
+                        "Game paused due to incoming call or alarm."
+                    )
+                }
+            }
         }
     }
 
