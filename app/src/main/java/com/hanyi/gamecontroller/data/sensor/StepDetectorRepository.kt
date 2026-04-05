@@ -19,7 +19,11 @@ class StepDetectorRepository(
     private val _steps = MutableStateFlow(0)
     val steps: StateFlow<Int> = _steps
 
+    private val _stepsCadence = MutableStateFlow(0f)
+    val stepsCadence: StateFlow<Float> = _stepsCadence
+
     private var stepCount = 0
+    private val recentStepTimestamps = mutableListOf<Long>()
 
     private val ALPHA = 0.8f
     private val gravity = FloatArray(3)
@@ -37,6 +41,12 @@ class StepDetectorRepository(
     private val MIN_STEP_INTERVAL_NS = 250_000_000L
     private var lastStepTime = 0L
 
+    private val WINDOW_NS = 1_000_000_000L
+    private var smoothedCadence = 0f
+    private val ALPHA_CADENCE = 0.2f
+    private val IDLE_TIMEOUT_NS = 500_000_000L
+    private var lastCadenceUpdateTime = 0L
+
     override fun onSensorValueChanged(event: SensorEvent) {
 
         gravity[0] = ALPHA * gravity[0] + (1 - ALPHA) * event.values[0]
@@ -50,10 +60,38 @@ class StepDetectorRepository(
         val magnitude = sqrt(x * x + y * y + z * z)
 
         detectStep(magnitude, event.timestamp)
+
+        val now = event.timestamp
+        if (now - lastStepTime > IDLE_TIMEOUT_NS) {
+            smoothedCadence *= 0.90f  // smooth decay
+            if (smoothedCadence < 1f) {
+                smoothedCadence = 0f
+            }
+            _stepsCadence.tryEmit(smoothedCadence)
+        }
+    }
+
+    private fun computeRawCadence(now: Long): Float {
+        recentStepTimestamps.removeAll { it < now - WINDOW_NS }
+
+        if (recentStepTimestamps.size < 2) return 0f
+
+        return recentStepTimestamps.size * 60f // since 1 sec window
+    }
+
+    private fun smoothCadence(raw: Float): Float {
+        val alpha = 0.4f // stronger response for games
+
+        smoothedCadence = alpha * raw + (1 - alpha) * smoothedCadence
+
+        return smoothedCadence.coerceIn(0f, 200f)
+    }
+
+    private fun applyDeadzone(value: Float): Float {
+        return if (value < 5f) 0f else value
     }
 
     private fun detectStep(value: Float, timestamp: Long) {
-
         window[windowIndex] = value
         windowIndex = (windowIndex + 1) % WINDOW_SIZE
 
@@ -81,6 +119,13 @@ class StepDetectorRepository(
             stepCount++
             _steps.tryEmit(stepCount)
             lastStepTime = timestamp
+            recentStepTimestamps.add(timestamp)
+
+            val rawCadence = computeRawCadence(timestamp)
+            val smooth = smoothCadence(rawCadence)
+            val output = applyDeadzone(smooth)
+
+            _stepsCadence.tryEmit(output)
         }
 
         lastDirection = direction

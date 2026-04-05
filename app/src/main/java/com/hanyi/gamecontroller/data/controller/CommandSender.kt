@@ -22,11 +22,12 @@ class CommandSender(
         )
     }
 
-    suspend fun sendMovement(steps: Int, accel: Triple<Float, Float, Float>, buttonState: Map<String, Boolean>) {
+    suspend fun sendMovement(steps: Int, stepsCadence: Float, accel: Triple<Float, Float, Float>, buttonState: Map<String, Boolean>) {
         val packet = MovementPacket(
             timestamp = System.currentTimeMillis(),
             payload = MovementPacket.Payload(
                 steps = steps,
+                stepsCadence = stepsCadence,
                 x = accel.first,
                 y = accel.second,
                 z = accel.third,

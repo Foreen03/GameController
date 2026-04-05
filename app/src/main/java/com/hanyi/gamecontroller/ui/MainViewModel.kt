@@ -38,9 +38,11 @@ class MainViewModel(
     val uiState: StateFlow<BleUiState> = _uiState
 
     val steps = stepRepo.steps
+    val stepsCadence = stepRepo.stepsCadence
     val accel = accelRepo.accel
 
     private val latestSteps = MutableStateFlow(0)
+    private val latestStepsCadence = MutableStateFlow(0f)
     private val latestAccel = MutableStateFlow(Triple(0f, 0f, 0f))
     private var streamingJob: Job? = null
     private val buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
@@ -72,6 +74,10 @@ class MainViewModel(
 
         viewModelScope.launch {
             steps.collect { latestSteps.value = it }
+        }
+
+        viewModelScope.launch {
+            stepsCadence.collect { latestStepsCadence.value = it }
         }
 
         viewModelScope.launch {
@@ -260,6 +266,7 @@ class MainViewModel(
     private suspend fun sendMovementPacket() {
         commandSender.sendMovement(
             steps = latestSteps.value,
+            stepsCadence = latestStepsCadence.value,
             accel = latestAccel.value,
             buttonState = buttonState.value
         )

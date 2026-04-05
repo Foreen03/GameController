@@ -11,6 +11,7 @@ data class MovementPacket(
     @Serializable
     data class Payload(
         val steps: Int,
+        val stepsCadence: Float,
         val x: Float,
         val y : Float,
         val z: Float,
