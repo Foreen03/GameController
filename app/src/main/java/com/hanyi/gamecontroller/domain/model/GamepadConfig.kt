@@ -7,7 +7,8 @@ data class GamepadConfig(
     val version: Int,
     val gamepad: GamepadMeta,
     val theme: GamepadTheme,
-    val layout: Layout
+    val layout: Layout,
+    val conflictsResolution: List<ConflictsResolution>? = null
 )
 
 @Serializable

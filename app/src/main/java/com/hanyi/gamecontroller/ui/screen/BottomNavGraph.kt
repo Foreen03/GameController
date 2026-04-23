@@ -23,6 +23,7 @@ fun BottomNavGraph(
 
         composable(AppNavigation.Home.route) {
             GamePadList(viewModel = viewModel) { selectedGamepad ->
+                viewModel.selectGamepad(selectedGamepad)
                 navController.navigate("gamepad/${selectedGamepad.gamepad.id}")
             }
         }

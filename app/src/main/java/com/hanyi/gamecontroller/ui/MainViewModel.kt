@@ -45,7 +45,9 @@ class MainViewModel(
     private val latestStepsCadence = MutableStateFlow(0f)
     private val latestAccel = MutableStateFlow(Triple(0f, 0f, 0f))
     private var streamingJob: Job? = null
-    private val buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    private val _buttonState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val buttonState: StateFlow<Map<String, Boolean>> = _buttonState
+    private val realButtonState = mutableMapOf<String, Boolean>()
 
     private val _dialogState = MutableStateFlow(NotificationDialogState())
     val dialogState: StateFlow<NotificationDialogState> = _dialogState
@@ -58,6 +60,9 @@ class MainViewModel(
 
     private val _gamepads = MutableStateFlow<List<GamepadConfig>>(emptyList())
     val gamepads: StateFlow<List<GamepadConfig>> = _gamepads
+
+    private val _selectedGamepad = MutableStateFlow<GamepadConfig?>(null)
+    val selectedGamepad: StateFlow<GamepadConfig?> = _selectedGamepad
 
     private var lastHeartbeatTime = 0L
     private val HEARTBEAT_TIMEOUT = 6000L
@@ -87,6 +92,9 @@ class MainViewModel(
         viewModelScope.launch {
             gamepadRepository.getAllGamepads().collect { list ->
                 _gamepads.value = list
+                if (_selectedGamepad.value == null) {
+                    _selectedGamepad.value = list.firstOrNull()
+                }
             }
         }
 
@@ -249,10 +257,43 @@ class MainViewModel(
     }
 
     fun setButton(id: String, pressed: Boolean){
-        buttonState.update { it + (id to pressed) }
+        realButtonState[id] = pressed
+        _buttonState.value = resolveConflicts(realButtonState)
         viewModelScope.launch {
             sendMovementPacket()
         }
+    }
+
+    private fun resolveConflicts(currentState: Map<String, Boolean>): Map<String, Boolean> {
+        val gamepad = _selectedGamepad.value ?: return currentState
+        val conflicts = gamepad.conflictsResolution ?: return currentState
+        val newState = currentState.toMutableMap()
+
+        val pressedButtons = currentState.filter { it.value }.keys
+
+        for (conflict in conflicts) {
+            val conflictingButtons = pressedButtons.intersect(conflict.commands.toSet())
+
+            if (conflictingButtons.size > 1) {
+                val priority = conflict.priority
+                // Find the highest priority button that is currently pressed
+                val highestPriorityButton = priority.firstOrNull { conflictingButtons.contains(it) }
+
+                if (highestPriorityButton != null) {
+                    // Suppress all other conflicting buttons
+                    for (button in conflictingButtons) {
+                        if (button != highestPriorityButton) {
+                            newState[button] = false
+                        }
+                    }
+                }
+            }
+        }
+        return newState
+    }
+
+    fun selectGamepad(gamepadConfig: GamepadConfig) {
+        _selectedGamepad.value = gamepadConfig
     }
 
     override fun onCleared() {
@@ -268,7 +309,7 @@ class MainViewModel(
             steps = latestSteps.value,
             stepsCadence = latestStepsCadence.value,
             accel = latestAccel.value,
-            buttonState = buttonState.value
+            buttonState = _buttonState.value
         )
     }
 

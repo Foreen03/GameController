@@ -60,5 +60,13 @@
         "command": "fire"
       }
     ]
-  }
+  },
+  "conflictsResolution": [
+    {
+      "name": "testing",
+      "mode": "priority",
+      "commands": ["fire", "jump"],
+      "priority": ["fire", "jump"]
+    }
+  ]
 }
