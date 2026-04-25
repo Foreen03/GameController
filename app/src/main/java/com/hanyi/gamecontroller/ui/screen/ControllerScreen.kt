@@ -5,8 +5,10 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -147,11 +149,11 @@ fun ControllerScreen(
         }
 
         // Toggle System Bar Button
-        Column(
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(24.dp),
+            horizontalArrangement = Arrangement.Start
         ) {
             IconButton(onClick = { isSystemBarVisible = !isSystemBarVisible }) {
                 Icon(
@@ -160,6 +162,10 @@ fun ControllerScreen(
                     tint = Color.Black.copy(alpha = 0.7f)
                 )
             }
+
+            ScreenshotButton(
+                onClick = { viewModel.sendScreenshotCommand() }
+            )
         }
 
         // Pause Button
@@ -178,12 +184,7 @@ fun ControllerScreen(
                 .background(pauseBackground)
         )
 
-        ScreenshotButton(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp),
-            onClick = { viewModel.sendScreenshotCommand() }
-        )
+
 
         // Gamepad Buttons
         config.layout.components.forEach { component ->
