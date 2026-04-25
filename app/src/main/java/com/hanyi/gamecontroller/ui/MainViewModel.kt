@@ -343,6 +343,12 @@ class MainViewModel(
         stopSensors()
     }
 
+    fun sendScreenshotCommand(){
+        viewModelScope.launch {
+            commandSender.sendCommand("screenshot")
+        }
+    }
+
     fun sendResumeCommand() {
         viewModelScope.launch {
             commandSender.sendCommand("resume")

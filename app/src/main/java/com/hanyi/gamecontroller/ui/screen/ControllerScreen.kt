@@ -178,6 +178,13 @@ fun ControllerScreen(
                 .background(pauseBackground)
         )
 
+        ScreenshotButton(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            onClick = { viewModel.sendScreenshotCommand() }
+        )
+
         // Gamepad Buttons
         config.layout.components.forEach { component ->
             when (component.type) {
