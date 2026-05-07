@@ -38,10 +38,13 @@ class CommandSender(
     }
 
     private suspend fun sendPacket(packet: BlePacket) {
-        bleRepository.sendData(
+        val success = bleRepository.sendData(
             SERVICE_UUID,
             WRITE_CHAR_UUID,
             gson.toJson(packet).toByteArray()
         )
+        if (!success) {
+            android.util.Log.e("CommandSender", "Failed to send packet: ${gson.toJson(packet)}")
+        }
     }
 }

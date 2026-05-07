@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class BleManager(private val context: Context) {
     private val TAG = "BleManager"
@@ -186,6 +187,9 @@ class BleManager(private val context: Context) {
         }
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic?, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.e(TAG, "onCharacteristicWrite failed with status: $status")
+            }
             pendingWriteContinuation?.let { cont ->
                 cont.resume(status == BluetoothGatt.GATT_SUCCESS)
                 pendingWriteContinuation = null
@@ -232,13 +236,38 @@ class BleManager(private val context: Context) {
     }
 
     suspend fun writeCharacteristic(serviceUuid: UUID, characteristicUUID: UUID, data: ByteArray): Boolean = writeMutex.withLock {
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return false
-        val gatt = bluetoothGatt ?: return false
-        val service = gatt.getService(serviceUuid) ?: return false
-        val characteristic = service.getCharacteristic(characteristicUUID) ?: return false
-        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-        characteristic.value = data
-        gatt.writeCharacteristic(characteristic)
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return@withLock false
+
+        val gatt = bluetoothGatt ?: run {
+            Log.w(TAG, "BluetoothGatt not initialized")
+            return@withLock false
+        }
+        val service = gatt.getService(serviceUuid) ?: run {
+            Log.w(TAG, "Service not found: $serviceUuid")
+            return@withLock false
+        }
+        val characteristic = service.getCharacteristic(characteristicUUID) ?: run {
+            Log.w(TAG, "Characteristic not found: $characteristicUUID")
+            return@withLock false
+        }
+
+        return@withLock suspendCancellableCoroutine { continuation ->
+            pendingWriteContinuation = continuation
+
+            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            characteristic.value = data
+
+            if (!gatt.writeCharacteristic(characteristic)) {
+                Log.e(TAG, "Failed to initiate characteristic write")
+                pendingWriteContinuation?.takeIf { it.isActive }?.resume(false)
+                pendingWriteContinuation = null
+            }
+
+            continuation.invokeOnCancellation {
+                Log.w(TAG, "Write operation was cancelled")
+                pendingWriteContinuation = null
+            }
+        }
     }
 
     fun enableNotifications(gatt: BluetoothGatt, serviceUuid: UUID, characteristicUUID: UUID) {
