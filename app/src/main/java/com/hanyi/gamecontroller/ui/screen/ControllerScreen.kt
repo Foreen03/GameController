@@ -50,9 +50,9 @@ fun ControllerScreen(
 
     SystemBar(isVisible = isSystemBarVisible)
 
-    val isPaused by viewModel.uiState
-        .map { it.isPaused }
-        .collectAsState(initial = true)
+    val isPaused by remember(viewModel.uiState) {
+        viewModel.uiState.map { it.isPaused }
+    }.collectAsState(initial = true)
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -142,49 +142,24 @@ fun ControllerScreen(
         val usableWidth = screenWidth * (1f - safeArea.left - safeArea.right)
         val usableHeight = screenHeight * (1f - safeArea.top - safeArea.bottom)
 
-        val pauseBackground = try {
-            Color(config.theme.button.color.toColorInt())
-        } catch (e: Exception) {
-            Color.Blue
-        }
-
-        // Toggle System Bar Button
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            IconButton(onClick = { isSystemBarVisible = !isSystemBarVisible }) {
-                Icon(
-                    imageVector = if (isSystemBarVisible) LucideEye else LucideEyeOff,
-                    contentDescription = "Toggle System Bar",
-                    tint = Color.Black.copy(alpha = 0.7f)
-                )
-            }
-
-            ScreenshotButton(
-                onClick = { viewModel.sendScreenshotCommand() }
+        // System Buttons
+        config.layout.systemComponents?.forEach { systemComponent ->
+            val offsetX = systemComponent.position.x * screenWidth.value
+            val offsetY = systemComponent.position.y * screenHeight.value
+            SystemButton(
+                systemComponent = systemComponent,
+                theme = config.theme.button,
+                isPaused = isPaused,
+                isSystemBarVisible = isSystemBarVisible,
+                onPause = { viewModel.sendPauseCommand() },
+                onResume = { viewModel.sendResumeCommand() },
+                onScreenshot = { viewModel.sendScreenshotCommand() },
+                onToggleSystemBar = { isSystemBarVisible = !isSystemBarVisible },
+                modifier = Modifier.absoluteOffset(x = offsetX.dp, y = offsetY.dp),
+                usableWidth = usableWidth,
+                usableHeight = usableHeight
             )
         }
-
-        // Pause Button
-        PauseButton(
-            isPause = isPaused,
-            onTogglePause = {
-                if (isPaused) viewModel.sendResumeCommand()
-                else viewModel.sendPauseCommand()
-            },
-            modifier = Modifier
-                .absoluteOffset(
-                    y = (safeArea.top * screenHeight.value).dp
-                )
-                .align(Alignment.TopCenter)
-                .clip(CircleShape)
-                .background(pauseBackground)
-        )
-
-
 
         // Gamepad Buttons
         config.layout.components.forEach { component ->

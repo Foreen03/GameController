@@ -36,7 +36,7 @@ data class BackgroundImageConfig(
 
 @Serializable
 data class ButtonTheme(
-    val color: String,
+    val backgroundColor: String,
     val pressedAlpha: Float,
     val textColor: String,
     val textSizeSp: Int
@@ -45,7 +45,8 @@ data class ButtonTheme(
 @Serializable
 data class Layout(
     val safeArea: SafeArea,
-    val components: List<Component>
+    val components: List<Component>,
+    val systemComponents: List<SystemComponent>? = null
 )
 
 @Serializable
@@ -63,8 +64,9 @@ data class Component(
     val position: Position,
     val size: Size,
     val shape: String,
-    val label: String,
-    val command: String
+    val command: String,
+    val content: ButtonContent,
+    val style: ComponentStyle? = null
 )
 
 @Serializable

@@ -1,27 +1,36 @@
 package com.hanyi.gamecontroller.ui.screen
 
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.material3.Text
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.unit.Dp
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.decode.SvgDecoder
+import coil.request.ImageRequest
 import com.hanyi.gamecontroller.domain.model.ButtonTheme
 import com.hanyi.gamecontroller.domain.model.Component
-import androidx.core.graphics.toColorInt
 import com.hanyi.gamecontroller.domain.model.SafeArea
+import com.hanyi.gamecontroller.ui.theme.resolveButtonStyle
 
 @Composable
 fun GameButton(
@@ -36,6 +45,7 @@ fun GameButton(
     onUp: (String) -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
+    val resolvedStyle = resolveButtonStyle(component, theme)
 
     val width = (component.size.width * usableWidth.value).dp
     val height = (component.size.height * usableHeight.value).dp
@@ -53,10 +63,12 @@ fun GameButton(
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isPressed)
-            Color(theme.color.toColorInt()).copy(alpha = theme.pressedAlpha)
+            resolvedStyle.backgroundColor.copy(alpha = resolvedStyle.pressedAlpha)
         else
-            Color(theme.color.toColorInt())
+            resolvedStyle.backgroundColor
     )
+
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -68,7 +80,7 @@ fun GameButton(
                     else -> CircleShape // you can add RoundedCornerShape later
                 }
             )
-            .background(backgroundColor)
+            .background(if (resolvedStyle.showBackground) backgroundColor else Color.Transparent)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -82,11 +94,79 @@ fun GameButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = component.label,
-            color = Color(theme.textColor.toColorInt()),
-            fontSize = theme.textSizeSp.sp,
-            fontWeight = FontWeight.Bold
-        )
+        when (component.content.type) {
+            "text" -> {
+                component.content.text?.let {
+                    Text(
+                        text = it,
+                        color = resolvedStyle.textColor,
+                        fontSize = resolvedStyle.textSizeSp.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            "image" -> {
+                component.content.image?.let {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(it.value)
+                            .crossfade(true)
+                            .listener(
+                                onError = { _, result ->
+                                    Log.e("IMG", "FAILED", result.throwable)
+                                }
+                            )
+                            .build(),
+                        imageLoader = ImageLoader.Builder(context)
+                            .components {
+                                add(SvgDecoder.Factory())
+                            }
+
+                            .build(),
+                        contentDescription = component.id,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                        contentScale = when (it.scaleType) {
+                            "fit" -> ContentScale.Fit
+                            "fill" -> ContentScale.FillBounds
+                            else -> ContentScale.Fit
+                        }
+                    )
+                }
+            }
+            "image_text" -> {
+                component.content.image?.let {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(it.value)
+                            .crossfade(true)
+                            .build(),
+                        imageLoader = ImageLoader.Builder(context)
+                            .components {
+                                add(SvgDecoder.Factory())
+                            }
+                            .build(),
+                        contentDescription = component.id,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                        contentScale = when (it.scaleType) {
+                            "fit" -> ContentScale.Fit
+                            "fill" -> ContentScale.FillBounds
+                            else -> ContentScale.Fit
+                        }
+                    )
+                }
+                component.content.text?.let {
+                    Text(
+                        text = it,
+                        color = resolvedStyle.textColor,
+                        fontSize = resolvedStyle.textSizeSp.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }
