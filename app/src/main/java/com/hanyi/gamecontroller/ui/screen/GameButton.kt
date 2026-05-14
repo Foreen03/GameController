@@ -130,6 +130,7 @@ fun GameButton(
                         contentScale = when (it.scaleType) {
                             "fit" -> ContentScale.Fit
                             "fill" -> ContentScale.FillBounds
+                            "crop" -> ContentScale.Crop
                             else -> ContentScale.Fit
                         }
                     )
