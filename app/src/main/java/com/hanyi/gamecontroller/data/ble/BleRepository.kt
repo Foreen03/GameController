@@ -42,6 +42,9 @@ class BleRepository(
     private val _transferProgress = MutableStateFlow(0f)
     val transferProgress = _transferProgress.asStateFlow()
 
+    private val _isTransferring = MutableStateFlow(false)
+    val isTransfering = _isTransferring.asStateFlow()
+
     private var expectedTotalBytes = 0
 
     init {
@@ -91,6 +94,7 @@ class BleRepository(
                     _transferProgress.value = percentage.coerceIn(0f, 1f)
                 } else {
                     _transferProgress.value = 0f
+                    _isTransferring.value = false
                 }
             }.launchIn(CoroutineScope(Dispatchers.IO))
     }
@@ -100,6 +104,7 @@ class BleRepository(
             if (raw.contains("TRANSFER_START")) {
                 val header = gson.fromJson(raw, TransferHeader::class.java)
                 expectedTotalBytes = header.totalLength
+                _isTransferring.value = true
                 Log.d("BLE", "Expecting transfer of ${header.totalLength} bytes")
                 return
             }
@@ -138,6 +143,7 @@ class BleRepository(
             }
         } catch (e: Exception) {
             Log.e("BLE", "Failed to parse incoming packet", e)
+            _isTransferring.value = false
         }
     }
 

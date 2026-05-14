@@ -305,6 +305,11 @@ class MainViewModel(
     fun stopSensors() = sensorCoordinator.stopAll()
 
     private suspend fun sendMovementPacket() {
+
+        if (_progressState.value.show) {
+            return
+        }
+
         commandSender.sendMovement(
             steps = latestSteps.value,
             stepsCadence = latestStepsCadence.value,
