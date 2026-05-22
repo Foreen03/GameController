@@ -155,9 +155,12 @@ fun ControllerScreen(
                 onResume = { viewModel.sendResumeCommand() },
                 onScreenshot = { viewModel.sendScreenshotCommand() },
                 onToggleSystemBar = { isSystemBarVisible = !isSystemBarVisible },
-                modifier = Modifier.absoluteOffset(x = offsetX.dp, y = offsetY.dp),
+                modifier = Modifier,
                 usableWidth = usableWidth,
-                usableHeight = usableHeight
+                usableHeight = usableHeight,
+                safeArea = safeArea,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight
             )
         }
 

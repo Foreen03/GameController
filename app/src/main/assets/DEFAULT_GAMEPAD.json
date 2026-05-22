@@ -115,7 +115,7 @@
 
         "position": {
           "x": 0.5,
-          "y": 0.048
+          "y": 0.068
         },
 
         "size": {
@@ -137,8 +137,8 @@
         "id": "screenshot_button",
 
         "position": {
-          "x": 0.024,
-          "y": 0.048
+          "x": 0.134,
+          "y": 0.076
         },
 
         "size": {
@@ -160,8 +160,8 @@
         "id": "toggle_system_bar",
 
         "position": {
-          "x": 0.072,
-          "y": 0.048
+          "x": 0.038,
+          "y": 0.073
         },
 
         "shape": "circle",

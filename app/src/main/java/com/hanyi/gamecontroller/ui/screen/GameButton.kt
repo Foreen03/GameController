@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,7 +78,7 @@ fun GameButton(
             .clip(
                 when (component.shape) {
                     "circle" -> CircleShape
-                    else -> CircleShape // you can add RoundedCornerShape later
+                    else -> RoundedCornerShape(8.dp) // you can add RoundedCornerShape later
                 }
             )
             .background(if (resolvedStyle.showBackground) backgroundColor else Color.Transparent)
