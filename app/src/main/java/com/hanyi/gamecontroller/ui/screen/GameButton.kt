@@ -32,6 +32,10 @@ import com.hanyi.gamecontroller.domain.model.ButtonTheme
 import com.hanyi.gamecontroller.domain.model.Component
 import com.hanyi.gamecontroller.domain.model.SafeArea
 import com.hanyi.gamecontroller.ui.theme.resolveButtonStyle
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
 fun GameButton(
@@ -107,59 +111,151 @@ fun GameButton(
                 }
             }
             "image" -> {
-                component.content.image?.let {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(it.value)
-                            .crossfade(true)
-                            .listener(
-                                onError = { _, result ->
-                                    Log.e("IMG", "FAILED", result.throwable)
-                                }
-                            )
-                            .build(),
-                        imageLoader = ImageLoader.Builder(context)
-                            .components {
-                                add(SvgDecoder.Factory())
+                component.content.image?.let { image ->
+
+                    val bitmap = remember(image.value) {
+
+                        try {
+                            if (image.value.startsWith("data:image")) {
+
+                                val base64 = image.value
+                                    .substringAfter("base64,")
+                                    .replace("\n", "")
+
+                                val bytes = Base64.decode(
+                                    base64,
+                                    Base64.DEFAULT
+                                )
+
+                                BitmapFactory.decodeByteArray(
+                                    bytes,
+                                    0,
+                                    bytes.size
+                                )
+
+                            } else {
+                                null
                             }
 
-                            .build(),
-                        contentDescription = component.id,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
-                        contentScale = when (it.scaleType) {
-                            "fit" -> ContentScale.Fit
-                            "fill" -> ContentScale.FillBounds
-                            "crop" -> ContentScale.Crop
-                            else -> ContentScale.Fit
+                        } catch (e: Exception) {
+                            Log.e("IMG", "Base64 decode failed", e)
+                            null
                         }
-                    )
+                    }
+
+                    if (bitmap != null) {
+
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = component.id,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                            contentScale = when (image.scaleType) {
+                                "fit" -> ContentScale.Fit
+                                "fill" -> ContentScale.FillBounds
+                                "crop" -> ContentScale.Crop
+                                else -> ContentScale.Fit
+                            }
+                        )
+
+                    } else {
+
+                        AsyncImage(
+                            model = image.value,
+                            contentDescription = component.id,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                            contentScale = when (image.scaleType) {
+                                "fit" -> ContentScale.Fit
+                                "fill" -> ContentScale.FillBounds
+                                "crop" -> ContentScale.Crop
+                                else -> ContentScale.Fit
+                            }
+                        )
+                    }
                 }
             }
             "image_text" -> {
-                component.content.image?.let {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(it.value)
-                            .crossfade(true)
-                            .build(),
-                        imageLoader = ImageLoader.Builder(context)
-                            .components {
-                                add(SvgDecoder.Factory())
+
+                component.content.image?.let { image ->
+
+                    val bitmap = remember(image.value) {
+
+                        try {
+
+                            if (image.value.startsWith("data:image")) {
+
+                                val base64 = image.value
+                                    .substringAfter("base64,")
+                                    .replace("\n", "")
+
+                                val bytes = Base64.decode(
+                                    base64,
+                                    Base64.DEFAULT
+                                )
+
+                                BitmapFactory.decodeByteArray(
+                                    bytes,
+                                    0,
+                                    bytes.size
+                                )
+
+                            } else {
+                                null
                             }
-                            .build(),
-                        contentDescription = component.id,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
-                        contentScale = when (it.scaleType) {
-                            "fit" -> ContentScale.Fit
-                            "fill" -> ContentScale.FillBounds
-                            else -> ContentScale.Fit
+
+                        } catch (e: Exception) {
+                            Log.e("IMG", "Base64 decode failed", e)
+                            null
                         }
-                    )
+                    }
+
+                    if (bitmap != null) {
+
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = component.id,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                            contentScale = when (image.scaleType) {
+                                "fit" -> ContentScale.Fit
+                                "fill" -> ContentScale.FillBounds
+                                "crop" -> ContentScale.Crop
+                                else -> ContentScale.Fit
+                            }
+                        )
+
+                    } else {
+
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(image.value)
+                                .crossfade(true)
+                                .build(),
+                            imageLoader = remember {
+                                ImageLoader.Builder(context)
+                                    .components {
+                                        add(SvgDecoder.Factory())
+                                    }
+                                    .build()
+                            },
+                            contentDescription = component.id,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .alpha(if (isPressed) resolvedStyle.pressedAlpha else 1f),
+                            contentScale = when (image.scaleType) {
+                                "fit" -> ContentScale.Fit
+                                "fill" -> ContentScale.FillBounds
+                                "crop" -> ContentScale.Crop
+                                else -> ContentScale.Fit
+                            }
+                        )
+                    }
                 }
+
                 component.content.text?.let {
                     Text(
                         text = it,
