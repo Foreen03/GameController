@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.domain.model.PCPacket
 import com.hanyi.gamecontroller.domain.model.TransferHeader
+import com.hanyi.gamecontroller.util.HapticManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,7 +24,8 @@ import java.util.UUID
 
 class BleRepository(
     private val bleManager: BleManager,
-    private val gson: Gson
+    private val gson: Gson,
+    private val hapticManager: HapticManager
 ) {
     val connectionState: StateFlow<BleConnectionState>
         get() = bleManager.connectionState
@@ -135,6 +137,11 @@ class BleRepository(
                     CoroutineScope(Dispatchers.IO).launch {
                         _heartbeatEvents.emit(time)
                     }
+                }
+
+                "VIBRATE" -> {
+                    val duration = packet.data.toLong()
+                    hapticManager.vibrate(duration)
                 }
 
                 else -> {

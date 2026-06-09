@@ -33,6 +33,7 @@ import com.hanyi.gamecontroller.domain.model.GamepadConfig
 import com.hanyi.gamecontroller.ui.MainViewModel
 import com.hanyi.gamecontroller.ui.screen.MainScreen
 import com.hanyi.gamecontroller.ui.theme.GameControllerTheme
+import com.hanyi.gamecontroller.util.HapticManager
 import com.hanyi.gamecontroller.util.PermissionHelper
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var gamepadRepository: GamepadRepository
     private lateinit var commandSender: CommandSender
     private lateinit var systemInterruptionRepository: SystemInterruptionRepository
+    private lateinit var hapticManager: HapticManager
     private var gson = Gson()
 
     private val requestBlePermissionsLauncher =
@@ -93,7 +95,8 @@ class MainActivity : ComponentActivity() {
         database = GamepadDatabase.getInstance(applicationContext)
 
         bleManager = BleManager(this)
-        bleRepository = BleRepository(bleManager, gson)
+        hapticManager = HapticManager(this)
+        bleRepository = BleRepository(bleManager, gson, hapticManager)
         stepDetectorRepository = StepDetectorRepository(this)
         accelerometerRepository = AccelerometerRepository(this)
         gamepadRepository = GamepadRepository(this, database.gamepadDao(), gson)
@@ -106,6 +109,7 @@ class MainActivity : ComponentActivity() {
             accelerometerRepository
         )
         systemInterruptionRepository = SystemInterruptionRepository(this)
+
 
         lifecycleScope.launch {
             val hasGamepads = gamepadRepository.hasAnyGamepad()
@@ -127,7 +131,7 @@ class MainActivity : ComponentActivity() {
             accelRepo = accelerometerRepository,
             gson = gson,
             gamepadRepository = gamepadRepository,
-            systemInterruptionRepository = systemInterruptionRepository
+            systemInterruptionRepository = systemInterruptionRepository,
         )
 
         enableEdgeToEdge()
