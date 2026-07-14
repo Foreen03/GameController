@@ -217,7 +217,6 @@ class MainViewModel(
     }
 
     fun startScan() {
-        // Safe call: BleManager usually handles the check internally, but we can catch just in case
         try {
             bleRepository.startScan()
         } catch (e: SecurityException) {
@@ -435,8 +434,6 @@ class MainViewModel(
                 val isTransferring = bleRepository.transferProgress.value > 0f
 
                 if (isTransferring) {
-                    // PC is active (sending data), so we manually update the
-                    // lastHeartbeatTime to "now" to keep the connection alive.
                     lastHeartbeatTime = System.currentTimeMillis()
                     continue
                 }

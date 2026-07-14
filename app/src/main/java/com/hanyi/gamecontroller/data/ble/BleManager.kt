@@ -17,13 +17,13 @@ import androidx.core.app.ActivityCompat
 import android.bluetooth.BluetoothProfile
 import androidx.annotation.RequiresPermission
 import com.hanyi.gamecontroller.domain.model.BleConnectionState
-import kotlinx.coroutines.CancellableContinuation
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
-import kotlin.coroutines.resume
+
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
 import android.os.ParcelUuid
@@ -63,7 +63,6 @@ class BleManager(private val context: Context) {
     private val _receivedData = MutableStateFlow<String>("")
     val receivedData: StateFlow<String> = _receivedData.asStateFlow()
 
-    private var pendingWriteContinuation: CancellableContinuation<Boolean>? = null
     private val dataBuffer = StringBuilder()
     private val writeMutex = Mutex()
     private val preference = context.getSharedPreferences("ble_prefs", Context.MODE_PRIVATE)
@@ -190,10 +189,7 @@ class BleManager(private val context: Context) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 Log.e(TAG, "onCharacteristicWrite failed with status: $status")
             }
-            pendingWriteContinuation?.let { cont ->
-                cont.resume(status == BluetoothGatt.GATT_SUCCESS)
-                pendingWriteContinuation = null
-            }
+
         }
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
@@ -251,23 +247,9 @@ class BleManager(private val context: Context) {
             return@withLock false
         }
 
-        return@withLock suspendCancellableCoroutine { continuation ->
-            pendingWriteContinuation = continuation
-
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-            characteristic.value = data
-
-            if (!gatt.writeCharacteristic(characteristic)) {
-                Log.e(TAG, "Failed to initiate characteristic write")
-                pendingWriteContinuation?.takeIf { it.isActive }?.resume(false)
-                pendingWriteContinuation = null
-            }
-
-            continuation.invokeOnCancellation {
-                Log.w(TAG, "Write operation was cancelled")
-                pendingWriteContinuation = null
-            }
-        }
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        characteristic.value = data
+        return@withLock gatt.writeCharacteristic(characteristic)
     }
 
     fun enableNotifications(gatt: BluetoothGatt, serviceUuid: UUID, characteristicUUID: UUID) {

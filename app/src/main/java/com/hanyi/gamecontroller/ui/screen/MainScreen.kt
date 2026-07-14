@@ -1,6 +1,7 @@
 package com.hanyi.gamecontroller.ui.screen
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -43,7 +44,7 @@ fun MainScreen(
         }
     ) { innerPadding ->
         BottomNavGraph(
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(PaddingValues(bottom = innerPadding.calculateBottomPadding())),
             navController = navController,
             viewModel = viewModel,
             uiState = uiState

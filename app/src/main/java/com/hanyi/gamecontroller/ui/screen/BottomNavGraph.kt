@@ -19,7 +19,7 @@ fun BottomNavGraph(
     uiState: BleUiState,
 ) {
 
-    NavHost(navController = navController, startDestination = AppNavigation.Home.route){
+    NavHost(navController = navController, startDestination = AppNavigation.Home.route, modifier = modifier){
 
         composable(AppNavigation.Home.route) {
             GamePadList(viewModel = viewModel) { selectedGamepad ->
